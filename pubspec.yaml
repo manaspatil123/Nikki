@@ -30,6 +30,12 @@ dependencies:
   # Permissions
   permission_handler: ^11.4.0
 
+  # Motion detection (camera idle sleep)
+  sensors_plus: ^6.1.1
+
+  # SVG rendering
+  flutter_svg: ^2.0.17
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -37,3 +43,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
