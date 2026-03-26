@@ -1,9 +1,7 @@
-import 'dart:ui' show Rect;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:nikki/providers/camera_provider.dart';
-import 'package:nikki/services/ocr_service.dart';
+import 'package:nikki/core/constants/languages.dart';
+import 'package:nikki/models/ocr.dart';
 
 /// On-device OCR using Apple's Vision framework (VNRecognizeTextRequest).
 ///
@@ -16,32 +14,11 @@ import 'package:nikki/services/ocr_service.dart';
 class AppleOcrService {
   static const _channel = MethodChannel('com.nikki/text_recognition');
 
-  static String _languageCode(String sourceLanguage) {
-    switch (sourceLanguage.toLowerCase()) {
-      case 'japanese':
-        return 'ja';
-      case 'chinese':
-        return 'zh-Hans';
-      case 'korean':
-        return 'ko';
-      case 'english':
-        return 'en';
-      case 'french':
-        return 'fr';
-      case 'german':
-        return 'de';
-      case 'spanish':
-        return 'es';
-      default:
-        return 'en';
-    }
-  }
-
   Future<OcrResult> processImageFile(
     String filePath,
     String sourceLanguage,
   ) async {
-    final langCode = _languageCode(sourceLanguage);
+    final langCode = Languages.appleOcrLanguageCode(sourceLanguage);
 
     debugPrint('Apple OCR: processing (lang=$langCode)');
 

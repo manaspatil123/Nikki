@@ -8,6 +8,7 @@ import 'package:nikki/providers/history_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/widgets/explanation_sheet.dart';
+import 'package:nikki/widgets/handle_draggable_sheet.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -163,28 +164,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            // Drag handle
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 4),
-              child: Container(
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const Expanded(child: ExplanationSheet()),
-          ],
-        ),
+      builder: (context) => const HandleDraggableSheet(
+        initialFraction: 0.6,
+        maxFraction: 0.9,
+        child: ExplanationSheet(),
       ),
     );
   }

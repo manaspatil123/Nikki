@@ -1,36 +1,8 @@
-import 'dart:ui' show Rect;
-
 import 'package:flutter/foundation.dart';
 import 'package:nikki/models/novel.dart';
-import 'package:nikki/models/explanation_category.dart';
+import 'package:nikki/models/ocr.dart';
 import 'package:nikki/data/novel_repository.dart';
 import 'package:nikki/data/settings_repository.dart';
-
-class RecognizedBlock {
-  final String text;
-  final Rect? boundingBox;
-  final List<RecognizedElement> elements;
-
-  RecognizedBlock({
-    required this.text,
-    this.boundingBox,
-    required this.elements,
-  });
-}
-
-class RecognizedElement {
-  final String text;
-  final Rect? boundingBox;
-
-  RecognizedElement({required this.text, this.boundingBox});
-}
-
-class SelectedWord {
-  final String text;
-  final String surroundingContext;
-
-  SelectedWord({required this.text, required this.surroundingContext});
-}
 
 class CameraProvider extends ChangeNotifier {
   final NovelRepository _novelRepository;
@@ -41,7 +13,6 @@ class CameraProvider extends ChangeNotifier {
   String sourceLanguage = 'Japanese';
   String targetLanguage = 'English';
   bool dontSave = false;
-  String googleCloudApiKey = '';
 
   // Capture state
   String? capturedImagePath;
@@ -50,7 +21,6 @@ class CameraProvider extends ChangeNotifier {
   List<RecognizedBlock> recognizedBlocks = [];
   SelectedWord? selectedWord;
   bool showExplanation = false;
-  Set<ExplanationCategory> enabledCategories = ExplanationCategory.values.toSet();
   int imageWidth = 0;
   int imageHeight = 0;
 
@@ -63,8 +33,6 @@ class CameraProvider extends ChangeNotifier {
       novels = await _novelRepository.getAllNovels();
       sourceLanguage = await _settingsRepository.getSourceLanguage();
       targetLanguage = await _settingsRepository.getTargetLanguage();
-      enabledCategories = await _settingsRepository.getEnabledCategories();
-      googleCloudApiKey = await _settingsRepository.getGoogleCloudApiKey();
       notifyListeners();
     } catch (e) {
       debugPrint('CameraProvider._loadInitialData error: $e');

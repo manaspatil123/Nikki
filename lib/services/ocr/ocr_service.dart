@@ -6,42 +6,14 @@ import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:nikki/providers/camera_provider.dart';
-
-class OcrResult {
-  final List<RecognizedBlock> blocks;
-  final int width;
-  final int height;
-
-  OcrResult({required this.blocks, required this.width, required this.height});
-}
+import 'package:nikki/core/constants/languages.dart';
+import 'package:nikki/models/ocr.dart';
 
 class OcrService {
-  static String _languageHint(String sourceLanguage) {
-    switch (sourceLanguage.toLowerCase()) {
-      case 'japanese':
-        return 'ja';
-      case 'chinese':
-        return 'zh';
-      case 'korean':
-        return 'ko';
-      case 'english':
-        return 'en';
-      case 'french':
-        return 'fr';
-      case 'german':
-        return 'de';
-      case 'spanish':
-        return 'es';
-      default:
-        return 'en';
-    }
-  }
-
   /// Process a captured image file using Google Cloud Vision API.
   ///
   /// Uses DOCUMENT_TEXT_DETECTION which returns a structured hierarchy:
-  ///   fullTextAnnotation → pages → blocks → paragraphs → words → symbols
+  ///   fullTextAnnotation -> pages -> blocks -> paragraphs -> words -> symbols
   ///
   /// Bounding boxes may use either `vertices` (pixel coordinates) or
   /// `normalizedVertices` (0-1 fractions of image dimensions). We handle both.
@@ -59,7 +31,7 @@ class OcrService {
 
     final imageBytes = await File(filePath).readAsBytes();
     final base64Image = base64Encode(imageBytes);
-    final langHint = _languageHint(sourceLanguage);
+    final langHint = Languages.googleOcrLanguageHint(sourceLanguage);
 
     debugPrint('OCR: sending to Cloud Vision (lang=$langHint, '
         'imageSize=${(imageBytes.length / 1024).toStringAsFixed(0)}KB)');
@@ -138,13 +110,13 @@ class OcrService {
     // Cloud Vision may return dimensions in raw sensor orientation (landscape)
     // while Flutter's Image.file() displays with EXIF rotation applied (portrait).
     // For a portrait-locked app: if API returned landscape (w > h), we need to
-    // rotate bounding boxes 90° CW to match the visual portrait display.
+    // rotate bounding boxes 90 CW to match the visual portrait display.
     final bool needsRotation = apiW > apiH;
     final int visualW = needsRotation ? apiH : apiW;
     final int visualH = needsRotation ? apiW : apiH;
 
     if (needsRotation) {
-      debugPrint('OCR: rotating coords 90° CW → visual ${visualW}x$visualH');
+      debugPrint('OCR: rotating coords 90 CW -> visual ${visualW}x$visualH');
     }
 
     final apiBlocks = firstPage['blocks'] as List<dynamic>? ?? [];
@@ -211,9 +183,9 @@ class OcrService {
   /// Parse a Cloud Vision boundingBox into a [Rect].
   ///
   /// Handles both `vertices` (pixel) and `normalizedVertices` (0-1 fractions).
-  /// If [needsRotation] is true, rotates coordinates 90° CW to convert from
+  /// If [needsRotation] is true, rotates coordinates 90 CW to convert from
   /// raw landscape sensor space to visual portrait space:
-  ///   raw(x, y) in WxH → visual(H - y, x) in HxW
+  ///   raw(x, y) in WxH -> visual(H - y, x) in HxW
   ///
   /// Per the API docs, zero-valued "x" or "y" fields are omitted entirely.
   static Rect? _parseBoundingBox(
@@ -252,7 +224,7 @@ class OcrService {
         y *= apiH;
       }
 
-      // Rotate 90° CW: raw(x,y) in WxH → visual(H-y, x) in HxW
+      // Rotate 90 CW: raw(x,y) in WxH -> visual(H-y, x) in HxW
       if (needsRotation) {
         final rotX = apiH - y;
         final rotY = x;

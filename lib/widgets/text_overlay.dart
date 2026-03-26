@@ -3,7 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:nikki/providers/camera_provider.dart';
+import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/models/ocr.dart';
 
 enum _CharType { cjk, hiragana, katakana, latin, digit, other }
 
@@ -500,8 +501,8 @@ class _TextOverlayPainter extends CustomPainter {
     if (selectedIndices.isNotEmpty) {
       final fillPaint = Paint()
         ..color = isDragging
-            ? const Color(0x332196F3)
-            : const Color(0x662196F3)
+            ? CameraColors.selectionDrag
+            : CameraColors.selectionFinal
         ..style = PaintingStyle.fill;
 
       int g = 0;
@@ -551,7 +552,7 @@ class _LoupeSelectionPainter extends CustomPainter {
     if (selectedGlobal.isEmpty) return;
 
     final fillPaint = Paint()
-      ..color = const Color(0x442196F3)
+      ..color = CameraColors.selectionLoupe
       ..style = PaintingStyle.fill;
 
     final minSelected = selectedGlobal.reduce(min);
@@ -585,10 +586,10 @@ class _LoupeSelectionPainter extends CustomPainter {
 
     // Draw cursor markers at both ends of the selection.
     final cursorPaint = Paint()
-      ..color = const Color(0xDD2196F3)
+      ..color = CameraColors.selectionCursor
       ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
-    final dotPaint = Paint()..color = const Color(0xDD2196F3);
+    final dotPaint = Paint()..color = CameraColors.selectionCursor;
 
     // Left cursor — left edge of first selected element, dot at bottom.
     if (firstRect != null) {

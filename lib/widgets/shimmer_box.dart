@@ -55,7 +55,7 @@ class ShimmerContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
+    return const SingleChildScrollView(
       padding: EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -9,9 +9,9 @@ import 'package:nikki/data/novel_repository.dart';
 import 'package:nikki/data/word_repository.dart';
 import 'package:nikki/data/settings_repository.dart';
 import 'package:nikki/services/openai_service.dart';
-import 'package:nikki/screens/camera_screen.dart';
-import 'package:nikki/screens/history_screen.dart';
-import 'package:nikki/screens/settings_screen.dart';
+import 'package:nikki/screens/camera/camera_screen.dart';
+import 'package:nikki/screens/history/history_screen.dart';
+import 'package:nikki/screens/settings/settings_screen.dart';
 
 class NikkiApp extends StatelessWidget {
   const NikkiApp({super.key});

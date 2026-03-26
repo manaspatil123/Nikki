@@ -1,35 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:nikki/core/constants/languages.dart';
 import 'package:nikki/models/explanation_category.dart';
 import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/providers/history_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
-
-  static const _sourceLanguages = [
-    'Japanese',
-    'Korean',
-    'Chinese (Simplified)',
-    'Chinese (Traditional)',
-    'French',
-    'German',
-    'Spanish',
-    'Italian',
-    'Portuguese',
-    'Russian',
-    'Arabic',
-  ];
-
-  static const _targetLanguages = [
-    'English',
-    'Japanese',
-    'Korean',
-    'Chinese',
-    'Spanish',
-    'French',
-    'German',
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => _showLanguageDialog(
                       context,
                       title: 'Source Language',
-                      languages: _sourceLanguages,
+                      languages: Languages.settingsSourceLanguages,
                       selected: settings.sourceLanguage,
                       onSelect: (lang) => settings.setSourceLanguage(lang),
                     ),
@@ -89,7 +66,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => _showLanguageDialog(
                       context,
                       title: 'Target Language',
-                      languages: _targetLanguages,
+                      languages: Languages.targetLanguages,
                       selected: settings.targetLanguage,
                       onSelect: (lang) => settings.setTargetLanguage(lang),
                     ),
