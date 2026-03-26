@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
-import 'package:nikki/services/ocr_service.dart';
+import 'package:nikki/services/apple_ocr_service.dart';
 import 'package:nikki/widgets/text_overlay.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -20,7 +20,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
-  final OcrService _ocrService = OcrService();
+  final AppleOcrService _ocrService = AppleOcrService();
   bool _permissionGranted = false;
   bool _permissionPermanentlyDenied = false;
   List<CameraDescription>? _cameras;
@@ -97,7 +97,6 @@ class _CameraScreenState extends State<CameraScreen>
       final result = await _ocrService.processImageFile(
         xFile.path,
         cameraProvider.sourceLanguage,
-        cameraProvider.googleCloudApiKey,
       );
       if (!mounted) return;
 
@@ -174,14 +173,15 @@ class _CameraScreenState extends State<CameraScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.black,
+      barrierColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (sheetContext) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.5,
-          minChildSize: 0.3,
-          maxChildSize: 0.85,
+          initialChildSize: 0.25,
+          minChildSize: 0.15,
+          maxChildSize: 0.45,
           expand: false,
           builder: (context, scrollController) {
             return Consumer<ExplanationProvider>(
@@ -525,36 +525,42 @@ class _CameraScreenState extends State<CameraScreen>
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Show captured image or live camera preview
-              if (cameraProvider.isCaptured)
-                SizedBox.expand(
-                  child: Image.file(
-                    File(cameraProvider.capturedImagePath!),
-                    fit: BoxFit.cover,
-                  ),
-                )
-              else
-                SizedBox.expand(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: controller.value.previewSize!.height,
-                      height: controller.value.previewSize!.width,
-                      child: CameraPreview(controller),
-                    ),
+              // Camera preview — always rendered to avoid flash on capture.
+              SizedBox.expand(
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: controller.value.previewSize!.height,
+                    height: controller.value.previewSize!.width,
+                    child: CameraPreview(controller),
                   ),
                 ),
+              ),
 
-              // Text overlay (only when captured and OCR results exist)
+              // Captured image + overlay layered on top.
               if (cameraProvider.isCaptured)
                 Positioned.fill(
-                  child: TextOverlay(
-                    blocks: cameraProvider.recognizedBlocks,
-                    selectedWord: cameraProvider.selectedWord,
-                    imageWidth: cameraProvider.imageWidth,
-                    imageHeight: cameraProvider.imageHeight,
-                    rotationDegrees: 0, // EXIF rotation already handled
-                    onSelectionComplete: _onTextSelected,
+                  child: InteractiveViewer(
+                    minScale: 1.0,
+                    maxScale: 5.0,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(
+                          File(cameraProvider.capturedImagePath!),
+                          fit: BoxFit.cover,
+                        ),
+                        TextOverlay(
+                          blocks: cameraProvider.recognizedBlocks,
+                          selectedWord: cameraProvider.selectedWord,
+                          imageWidth: cameraProvider.imageWidth,
+                          imageHeight: cameraProvider.imageHeight,
+                          rotationDegrees: 0,
+                          imagePath: cameraProvider.capturedImagePath,
+                          onSelectionComplete: _onTextSelected,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 

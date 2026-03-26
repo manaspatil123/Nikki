@@ -1,5 +1,11 @@
+import 'dart:io';
+import 'dart:math';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:nikki/providers/camera_provider.dart';
+
+enum _CharType { cjk, hiragana, katakana, latin, digit, other }
 
 class TextOverlay extends StatefulWidget {
   final List<RecognizedBlock> blocks;
@@ -7,6 +13,7 @@ class TextOverlay extends StatefulWidget {
   final int imageWidth;
   final int imageHeight;
   final int rotationDegrees;
+  final String? imagePath;
   final void Function(String selectedText, String blockText) onSelectionComplete;
 
   const TextOverlay({
@@ -16,6 +23,7 @@ class TextOverlay extends StatefulWidget {
     required this.imageWidth,
     required this.imageHeight,
     required this.rotationDegrees,
+    this.imagePath,
     required this.onSelectionComplete,
   });
 
@@ -24,26 +32,37 @@ class TextOverlay extends StatefulWidget {
 }
 
 class _TextOverlayState extends State<TextOverlay> {
-  // Drag selection state
-  int? _dragBlockIdx;
-  int? _dragStartWordIdx;
-  int? _dragEndWordIdx;
+  int? _dragStartGlobal;
+  int? _dragEndGlobal;
+  Set<int>? _finalSelectedGlobal;
+  Offset? _dragPosition;
 
-  /// Indices of words currently selected during drag.
-  Set<int> get _dragSelectedWordIndices {
-    if (_dragBlockIdx == null ||
-        _dragStartWordIdx == null ||
-        _dragEndWordIdx == null) {
-      return {};
+  // ── Global index helpers ──────────────────────────────────────────
+
+  ({int blockIdx, int elemIdx}) _fromGlobal(int global) {
+    int remaining = global;
+    for (int bi = 0; bi < widget.blocks.length; bi++) {
+      final count = widget.blocks[bi].elements.length;
+      if (remaining < count) {
+        return (blockIdx: bi, elemIdx: remaining);
+      }
+      remaining -= count;
     }
-    final lo = _dragStartWordIdx! < _dragEndWordIdx!
-        ? _dragStartWordIdx!
-        : _dragEndWordIdx!;
-    final hi = _dragStartWordIdx! > _dragEndWordIdx!
-        ? _dragStartWordIdx!
-        : _dragEndWordIdx!;
+    final lastBi = widget.blocks.length - 1;
+    return (
+      blockIdx: lastBi,
+      elemIdx: widget.blocks[lastBi].elements.length - 1,
+    );
+  }
+
+  Set<int> get _dragSelectedGlobalIndices {
+    if (_dragStartGlobal == null || _dragEndGlobal == null) return {};
+    final lo = min(_dragStartGlobal!, _dragEndGlobal!);
+    final hi = max(_dragStartGlobal!, _dragEndGlobal!);
     return {for (int i = lo; i <= hi; i++) i};
   }
+
+  // ── Transform helpers ─────────────────────────────────────────────
 
   static ({double scale, double offsetX, double offsetY}) _computeTransform(
     double overlayWidth,
@@ -53,11 +72,7 @@ class _TextOverlayState extends State<TextOverlay> {
   ) {
     final imageAspect = imgW / imgH;
     final screenAspect = overlayWidth / overlayHeight;
-
-    double scale;
-    double offsetX;
-    double offsetY;
-
+    double scale, offsetX, offsetY;
     if (imageAspect > screenAspect) {
       scale = overlayHeight / imgH;
       offsetX = (imgW * scale - overlayWidth) / 2;
@@ -67,16 +82,11 @@ class _TextOverlayState extends State<TextOverlay> {
       offsetX = 0;
       offsetY = (imgH * scale - overlayHeight) / 2;
     }
-
     return (scale: scale, offsetX: offsetX, offsetY: offsetY);
   }
 
   static Rect _transformRect(
-    Rect r,
-    double scale,
-    double offsetX,
-    double offsetY,
-  ) {
+      Rect r, double scale, double offsetX, double offsetY) {
     return Rect.fromLTRB(
       r.left * scale - offsetX,
       r.top * scale - offsetY,
@@ -85,81 +95,279 @@ class _TextOverlayState extends State<TextOverlay> {
     );
   }
 
-  /// Find which block and element index is at [pos].
-  /// Returns (blockIndex, elementIndex) or null.
-  ({int blockIdx, int elemIdx})? _hitTest(
-    Offset pos,
-    double scale,
-    double offsetX,
-    double offsetY,
-  ) {
+  // ── Hit-testing ───────────────────────────────────────────────────
+
+  int? _hitTest(Offset pos, double scale, double offsetX, double offsetY) {
     const padding = 6.0;
+    int global = 0;
     for (int bi = 0; bi < widget.blocks.length; bi++) {
-      final block = widget.blocks[bi];
-      for (int ei = 0; ei < block.elements.length; ei++) {
-        final bbox = block.elements[ei].boundingBox;
-        if (bbox == null) continue;
-        final r = _transformRect(bbox, scale, offsetX, offsetY);
-        if (r.inflate(padding).contains(pos)) {
-          return (blockIdx: bi, elemIdx: ei);
+      for (int ei = 0; ei < widget.blocks[bi].elements.length; ei++) {
+        final bbox = widget.blocks[bi].elements[ei].boundingBox;
+        if (bbox != null) {
+          final r = _transformRect(bbox, scale, offsetX, offsetY);
+          if (r.inflate(padding).contains(pos)) return global;
         }
+        global++;
       }
     }
     return null;
   }
 
-  /// Find the closest element in a specific block to [pos].
-  int? _closestInBlock(
-    int blockIdx,
-    Offset pos,
-    double scale,
-    double offsetX,
-    double offsetY,
-  ) {
-    final block = widget.blocks[blockIdx];
+  int? _closestGlobal(
+      Offset pos, double scale, double offsetX, double offsetY) {
     double bestDist = double.infinity;
-    int? bestIdx;
-    for (int ei = 0; ei < block.elements.length; ei++) {
-      final bbox = block.elements[ei].boundingBox;
-      if (bbox == null) continue;
-      final r = _transformRect(bbox, scale, offsetX, offsetY);
-      final center = r.center;
-      final dist = (center - pos).distance;
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestIdx = ei;
+    int? bestGlobal;
+    int global = 0;
+    for (int bi = 0; bi < widget.blocks.length; bi++) {
+      for (int ei = 0; ei < widget.blocks[bi].elements.length; ei++) {
+        final bbox = widget.blocks[bi].elements[ei].boundingBox;
+        if (bbox != null) {
+          final r = _transformRect(bbox, scale, offsetX, offsetY);
+          final dist = (r.center - pos).distance;
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestGlobal = global;
+          }
+        }
+        global++;
       }
     }
-    return bestIdx;
+    return bestGlobal;
+  }
+
+  // ── Word expansion for tap ─────────────────────────────────────
+
+  /// Given a tapped character's global index, expand the selection to
+  /// cover the full word it belongs to. Uses simple character-type grouping:
+  /// consecutive CJK ideographs / kana / letters form a word.
+  Set<int> _expandToWord(int tappedGlobal) {
+    final loc = _fromGlobal(tappedGlobal);
+    final block = widget.blocks[loc.blockIdx];
+    final elements = block.elements;
+    final tappedIdx = loc.elemIdx;
+
+    // Determine the character type of the tapped element.
+    final tappedChar = elements[tappedIdx].text;
+    final type = _charType(tappedChar);
+
+    // If it's punctuation or whitespace, just select the single character.
+    if (type == _CharType.other) return {tappedGlobal};
+
+    // Expand left.
+    int startIdx = tappedIdx;
+    while (startIdx > 0 && _charType(elements[startIdx - 1].text) == type) {
+      startIdx--;
+    }
+
+    // Expand right.
+    int endIdx = tappedIdx;
+    while (endIdx < elements.length - 1 &&
+        _charType(elements[endIdx + 1].text) == type) {
+      endIdx++;
+    }
+
+    // Convert back to global indices.
+    final blockStart = _toGlobal(loc.blockIdx, 0);
+    return {for (int i = startIdx; i <= endIdx; i++) blockStart + i};
+  }
+
+  static _CharType _charType(String s) {
+    if (s.isEmpty) return _CharType.other;
+    final c = s.codeUnitAt(0);
+    // CJK Unified Ideographs
+    if (c >= 0x4E00 && c <= 0x9FFF) return _CharType.cjk;
+    // CJK Extension A
+    if (c >= 0x3400 && c <= 0x4DBF) return _CharType.cjk;
+    // Hiragana
+    if (c >= 0x3040 && c <= 0x309F) return _CharType.hiragana;
+    // Katakana
+    if (c >= 0x30A0 && c <= 0x30FF) return _CharType.katakana;
+    // Half-width katakana
+    if (c >= 0xFF65 && c <= 0xFF9F) return _CharType.katakana;
+    // Latin letters
+    if ((c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A)) {
+      return _CharType.latin;
+    }
+    // Digits
+    if (c >= 0x30 && c <= 0x39) return _CharType.digit;
+    // Full-width digits/letters
+    if (c >= 0xFF10 && c <= 0xFF5A) return _CharType.latin;
+    return _CharType.other;
+  }
+
+  int _toGlobal(int blockIdx, int elemIdx) {
+    int idx = 0;
+    for (int bi = 0; bi < blockIdx; bi++) {
+      idx += widget.blocks[bi].elements.length;
+    }
+    return idx + elemIdx;
+  }
+
+  // ── Selection helpers ─────────────────────────────────────────────
+
+  void _commitSelection(Set<int> globalIndices) {
+    if (globalIndices.isEmpty) return;
+    final sorted = globalIndices.toList()..sort();
+    final selectedText = sorted.map((g) {
+      final loc = _fromGlobal(g);
+      return widget.blocks[loc.blockIdx].elements[loc.elemIdx].text;
+    }).join();
+    final involvedBlockIndices = <int>{};
+    for (final g in sorted) {
+      involvedBlockIndices.add(_fromGlobal(g).blockIdx);
+    }
+    final blockText =
+        involvedBlockIndices.toList().map((bi) => widget.blocks[bi].text).join(' ');
+    setState(() => _finalSelectedGlobal = Set.of(globalIndices));
+    widget.onSelectionComplete(selectedText, blockText);
   }
 
   void _finalizeDragSelection() {
-    if (_dragBlockIdx == null) return;
+    final indices = _dragSelectedGlobalIndices;
+    setState(() {
+      _dragStartGlobal = null;
+      _dragEndGlobal = null;
+      _dragPosition = null;
+    });
+    _commitSelection(indices);
+  }
 
-    final indices = _dragSelectedWordIndices;
-    if (indices.isEmpty) {
-      setState(() {
-        _dragBlockIdx = null;
-        _dragStartWordIdx = null;
-        _dragEndWordIdx = null;
-      });
-      return;
+  @override
+  void didUpdateWidget(covariant TextOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedWord == null && oldWidget.selectedWord != null) {
+      _finalSelectedGlobal = null;
+    }
+  }
+
+  // ── Magnifier loupe ───────────────────────────────────────────────
+
+  static const _kLoupeDiameter = 90.0;
+  static const _kLoupeRadius = _kLoupeDiameter / 2;
+  static const _kLoupeGap = 60.0;
+  static const _kLoupeMag = 2.0;
+
+  /// Build a magnifier that renders the actual image zoomed in, centered
+  /// on the exact touch point. No BackdropFilter — just a second Image
+  /// widget clipped to a circle, translated so the touch point sits at
+  /// the loupe center.
+  Widget _buildLoupe(
+    Offset touchLocal,
+    double overlayWidth,
+    double overlayHeight,
+  ) {
+    if (widget.imagePath == null) return const SizedBox.shrink();
+
+    // Loupe positioned above the finger.
+    final loupeLeft = touchLocal.dx - _kLoupeRadius;
+    final loupeTop = touchLocal.dy - _kLoupeGap - _kLoupeDiameter;
+
+    // The image is displayed with BoxFit.cover at (overlayWidth x overlayHeight).
+    // We render a second copy of the image at the same cover size * mag,
+    // then translate so the touch point lands at the loupe center.
+    //
+    // Cover size = the size the image is rendered at before clipping.
+    final imgW = widget.imageWidth.toDouble();
+    final imgH = widget.imageHeight.toDouble();
+    final imageAspect = imgW / imgH;
+    final screenAspect = overlayWidth / overlayHeight;
+
+    double coverW, coverH;
+    if (imageAspect > screenAspect) {
+      coverH = overlayHeight;
+      coverW = overlayHeight * imageAspect;
+    } else {
+      coverW = overlayWidth;
+      coverH = overlayWidth / imageAspect;
     }
 
-    final block = widget.blocks[_dragBlockIdx!];
-    final sorted = indices.toList()..sort();
-    final selectedText =
-        sorted.map((i) => block.elements[i].text).join();
-    final blockText = block.text;
+    // How the cover image is offset (centered crop).
+    final coverOffsetX = (coverW - overlayWidth) / 2;
+    final coverOffsetY = (coverH - overlayHeight) / 2;
 
-    setState(() {
-      _dragBlockIdx = null;
-      _dragStartWordIdx = null;
-      _dragEndWordIdx = null;
-    });
+    // The touch point in the overlay corresponds to this point in the
+    // cover-sized image:
+    final imgX = touchLocal.dx + coverOffsetX;
+    final imgY = touchLocal.dy + coverOffsetY;
 
-    widget.onSelectionComplete(selectedText, blockText);
+    // Scale the cover image by mag. The touch point in the scaled image:
+    final scaledImgX = imgX * _kLoupeMag;
+    final scaledImgY = imgY * _kLoupeMag;
+
+    // Translate so that (scaledImgX, scaledImgY) sits at loupe center (R, R).
+    final translateX = _kLoupeRadius - scaledImgX;
+    final translateY = _kLoupeRadius - scaledImgY;
+
+    return Positioned(
+      left: loupeLeft,
+      top: loupeTop,
+      child: IgnorePointer(
+        child: Container(
+          width: _kLoupeDiameter,
+          height: _kLoupeDiameter,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 8,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: ClipOval(
+            child: Stack(
+              children: [
+                // Magnified image
+                Positioned(
+                  left: translateX,
+                  top: translateY,
+                  width: coverW * _kLoupeMag,
+                  height: coverH * _kLoupeMag,
+                  child: Image.file(
+                    File(widget.imagePath!),
+                    fit: BoxFit.fill,
+                    gaplessPlayback: true,
+                  ),
+                ),
+                // Magnified selection overlay (same position/size)
+                Positioned(
+                  left: translateX,
+                  top: translateY,
+                  width: coverW * _kLoupeMag,
+                  height: coverH * _kLoupeMag,
+                  child: CustomPaint(
+                    size: Size(coverW * _kLoupeMag, coverH * _kLoupeMag),
+                    painter: _LoupeSelectionPainter(
+                      blocks: widget.blocks,
+                      selectedGlobal: _dragSelectedGlobalIndices,
+                      // The image pixels map to the magnified cover area.
+                      // scale: how many magnified-cover pixels per image pixel.
+                      scale: (coverW * _kLoupeMag) / widget.imageWidth,
+                    ),
+                  ),
+                ),
+                // Glass border
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
+
+  // ── Build ─────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +375,6 @@ class _TextOverlayState extends State<TextOverlay> {
       builder: (context, constraints) {
         final overlayWidth = constraints.maxWidth;
         final overlayHeight = constraints.maxHeight;
-
         final imgW =
             (widget.rotationDegrees == 90 || widget.rotationDegrees == 270)
                 ? widget.imageHeight.toDouble()
@@ -176,85 +383,97 @@ class _TextOverlayState extends State<TextOverlay> {
             (widget.rotationDegrees == 90 || widget.rotationDegrees == 270)
                 ? widget.imageWidth.toDouble()
                 : widget.imageHeight.toDouble();
-
         if (imgW == 0 || imgH == 0) return const SizedBox.expand();
 
         final t = _computeTransform(overlayWidth, overlayHeight, imgW, imgH);
 
-        return GestureDetector(
-          behavior: HitTestBehavior.translucent,
-
-          // Single tap → select one word
-          onTapUp: (details) {
-            final hit = _hitTest(
-                details.localPosition, t.scale, t.offsetX, t.offsetY);
-            if (hit != null) {
-              final block = widget.blocks[hit.blockIdx];
-              final element = block.elements[hit.elemIdx];
-              widget.onSelectionComplete(element.text, block.text);
-            }
-          },
-
-          // Long press + drag → select phrase
-          onLongPressStart: (details) {
-            final hit = _hitTest(
-                details.localPosition, t.scale, t.offsetX, t.offsetY);
-            if (hit != null) {
-              setState(() {
-                _dragBlockIdx = hit.blockIdx;
-                _dragStartWordIdx = hit.elemIdx;
-                _dragEndWordIdx = hit.elemIdx;
-              });
-            }
-          },
-          onLongPressMoveUpdate: (details) {
-            if (_dragBlockIdx == null) return;
-            // Find closest word in the same block
-            final closest = _closestInBlock(
-              _dragBlockIdx!,
-              details.localPosition,
-              t.scale,
-              t.offsetX,
-              t.offsetY,
-            );
-            if (closest != null && closest != _dragEndWordIdx) {
-              setState(() => _dragEndWordIdx = closest);
-            }
-          },
-          onLongPressEnd: (_) => _finalizeDragSelection(),
-
-          child: CustomPaint(
-            size: Size(overlayWidth, overlayHeight),
-            painter: _TextOverlayPainter(
-              blocks: widget.blocks,
-              selectedWord: widget.selectedWord,
-              dragBlockIdx: _dragBlockIdx,
-              dragSelectedIndices: _dragSelectedWordIndices,
-              scale: t.scale,
-              offsetX: t.offsetX,
-              offsetY: t.offsetY,
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            RawGestureDetector(
+              behavior: HitTestBehavior.translucent,
+              gestures: <Type, GestureRecognizerFactory>{
+                TapGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                  () => TapGestureRecognizer(),
+                  (instance) {
+                    instance.onTapUp = (details) {
+                      final hit = _hitTest(details.localPosition, t.scale,
+                          t.offsetX, t.offsetY);
+                      if (hit != null) _commitSelection(_expandToWord(hit));
+                    };
+                  },
+                ),
+                LongPressGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<
+                        LongPressGestureRecognizer>(
+                  () => LongPressGestureRecognizer(
+                    duration: const Duration(milliseconds: 200),
+                  ),
+                  (instance) {
+                    instance.onLongPressStart = (details) {
+                      final hit = _hitTest(details.localPosition, t.scale,
+                          t.offsetX, t.offsetY);
+                      if (hit != null) {
+                        setState(() {
+                          _dragStartGlobal = hit;
+                          _dragEndGlobal = hit;
+                          _dragPosition = details.localPosition;
+                        });
+                      }
+                    };
+                    instance.onLongPressMoveUpdate = (details) {
+                      if (_dragStartGlobal == null) return;
+                      final closest = _closestGlobal(details.localPosition,
+                          t.scale, t.offsetX, t.offsetY);
+                      if (closest != null) {
+                        setState(() {
+                          if (closest != _dragEndGlobal) {
+                            _dragEndGlobal = closest;
+                          }
+                          _dragPosition = details.localPosition;
+                        });
+                      }
+                    };
+                    instance.onLongPressEnd = (_) => _finalizeDragSelection();
+                  },
+                ),
+              },
+              child: CustomPaint(
+                size: Size(overlayWidth, overlayHeight),
+                painter: _TextOverlayPainter(
+                  blocks: widget.blocks,
+                  dragSelectedGlobal: _dragSelectedGlobalIndices,
+                  finalSelectedGlobal: _finalSelectedGlobal,
+                  scale: t.scale,
+                  offsetX: t.offsetX,
+                  offsetY: t.offsetY,
+                ),
+              ),
             ),
-          ),
+            if (_dragPosition != null)
+              _buildLoupe(_dragPosition!, overlayWidth, overlayHeight),
+          ],
         );
       },
     );
   }
 }
 
+// ── Painter ───────────────────────────────────────────────────────────
+
 class _TextOverlayPainter extends CustomPainter {
   final List<RecognizedBlock> blocks;
-  final SelectedWord? selectedWord;
-  final int? dragBlockIdx;
-  final Set<int> dragSelectedIndices;
+  final Set<int> dragSelectedGlobal;
+  final Set<int>? finalSelectedGlobal;
   final double scale;
   final double offsetX;
   final double offsetY;
 
   _TextOverlayPainter({
     required this.blocks,
-    required this.selectedWord,
-    required this.dragBlockIdx,
-    required this.dragSelectedIndices,
+    required this.dragSelectedGlobal,
+    required this.finalSelectedGlobal,
     required this.scale,
     required this.offsetX,
     required this.offsetY,
@@ -271,69 +490,33 @@ class _TextOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final underlinePaint = Paint()
-      ..color = const Color(0x30FFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+    final bool isDragging = dragSelectedGlobal.isNotEmpty;
+    final bool hasFinal =
+        !isDragging && finalSelectedGlobal != null && finalSelectedGlobal!.isNotEmpty;
 
-    // Drag selection highlight (blue tint)
-    final dragFillPaint = Paint()
-      ..color = const Color(0x442196F3)
-      ..style = PaintingStyle.fill;
+    final selectedIndices =
+        isDragging ? dragSelectedGlobal : (hasFinal ? finalSelectedGlobal! : <int>{});
 
-    final dragBorderPaint = Paint()
-      ..color = const Color(0xAA2196F3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
+    if (selectedIndices.isNotEmpty) {
+      final fillPaint = Paint()
+        ..color = isDragging
+            ? const Color(0x332196F3)
+            : const Color(0x662196F3)
+        ..style = PaintingStyle.fill;
 
-    // Final selection highlight (white)
-    final selectedFillPaint = Paint()
-      ..color = const Color(0x55FFFFFF)
-      ..style = PaintingStyle.fill;
-
-    final selectedBorderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    final bool isDragging = dragBlockIdx != null && dragSelectedIndices.isNotEmpty;
-
-    for (int bi = 0; bi < blocks.length; bi++) {
-      final block = blocks[bi];
-      for (int ei = 0; ei < block.elements.length; ei++) {
-        final element = block.elements[ei];
-        if (element.boundingBox == null) continue;
-        final r = _transform(element.boundingBox!);
-
-        if (r.right < 0 || r.bottom < 0 ||
-            r.left > size.width || r.top > size.height) {
-          continue;
-        }
-
-        // Check if this element is part of the active drag selection
-        final isDragSelected =
-            isDragging && bi == dragBlockIdx && dragSelectedIndices.contains(ei);
-
-        // Check if this element matches the finalized selection
-        final isFinalSelected = !isDragging &&
-            selectedWord != null &&
-            selectedWord!.text.contains(element.text);
-
-        if (isDragSelected) {
-          final rr = RRect.fromRectAndRadius(r, const Radius.circular(3));
-          canvas.drawRRect(rr, dragFillPaint);
-          canvas.drawRRect(rr, dragBorderPaint);
-        } else if (isFinalSelected) {
-          final rr = RRect.fromRectAndRadius(r, const Radius.circular(4));
-          canvas.drawRRect(rr, selectedFillPaint);
-          canvas.drawRRect(rr, selectedBorderPaint);
-        } else {
-          // Subtle underline
-          canvas.drawLine(
-            Offset(r.left, r.bottom),
-            Offset(r.right, r.bottom),
-            underlinePaint,
-          );
+      int g = 0;
+      for (int bi = 0; bi < blocks.length; bi++) {
+        for (int ei = 0; ei < blocks[bi].elements.length; ei++) {
+          if (selectedIndices.contains(g)) {
+            final bbox = blocks[bi].elements[ei].boundingBox;
+            if (bbox != null) {
+              canvas.drawRRect(
+                RRect.fromRectAndRadius(_transform(bbox), const Radius.circular(2)),
+                fillPaint,
+              );
+            }
+          }
+          g++;
         }
       }
     }
@@ -342,11 +525,104 @@ class _TextOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TextOverlayPainter oldDelegate) {
     return oldDelegate.blocks != blocks ||
-        oldDelegate.selectedWord != selectedWord ||
-        oldDelegate.dragBlockIdx != dragBlockIdx ||
-        oldDelegate.dragSelectedIndices != dragSelectedIndices ||
+        oldDelegate.dragSelectedGlobal != dragSelectedGlobal ||
+        oldDelegate.finalSelectedGlobal != finalSelectedGlobal ||
         oldDelegate.scale != scale ||
         oldDelegate.offsetX != offsetX ||
         oldDelegate.offsetY != offsetY;
+  }
+}
+
+/// Paints the blue selection fill inside the magnifier loupe.
+/// Coordinates are in the magnified cover-image space (image pixels * scale).
+class _LoupeSelectionPainter extends CustomPainter {
+  final List<RecognizedBlock> blocks;
+  final Set<int> selectedGlobal;
+  final double scale;
+
+  _LoupeSelectionPainter({
+    required this.blocks,
+    required this.selectedGlobal,
+    required this.scale,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (selectedGlobal.isEmpty) return;
+
+    final fillPaint = Paint()
+      ..color = const Color(0x442196F3)
+      ..style = PaintingStyle.fill;
+
+    final minSelected = selectedGlobal.reduce(min);
+    final maxSelected = selectedGlobal.reduce(max);
+    Rect? firstRect;
+    Rect? lastRect;
+
+    int g = 0;
+    for (int bi = 0; bi < blocks.length; bi++) {
+      for (int ei = 0; ei < blocks[bi].elements.length; ei++) {
+        if (selectedGlobal.contains(g)) {
+          final bbox = blocks[bi].elements[ei].boundingBox;
+          if (bbox != null) {
+            final r = Rect.fromLTRB(
+              bbox.left * scale,
+              bbox.top * scale,
+              bbox.right * scale,
+              bbox.bottom * scale,
+            );
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(r, const Radius.circular(3)),
+              fillPaint,
+            );
+            if (g == minSelected) firstRect = r;
+            if (g == maxSelected) lastRect = r;
+          }
+        }
+        g++;
+      }
+    }
+
+    // Draw cursor markers at both ends of the selection.
+    final cursorPaint = Paint()
+      ..color = const Color(0xDD2196F3)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+    final dotPaint = Paint()..color = const Color(0xDD2196F3);
+
+    // Left cursor — left edge of first selected element, dot at bottom.
+    if (firstRect != null) {
+      canvas.drawLine(
+        Offset(firstRect!.left, firstRect!.top - 2),
+        Offset(firstRect!.left, firstRect!.bottom + 2),
+        cursorPaint,
+      );
+      canvas.drawCircle(
+        Offset(firstRect!.left, firstRect!.bottom + 5),
+        3.0,
+        dotPaint,
+      );
+    }
+
+    // Right cursor — right edge of last selected element, dot at top.
+    if (lastRect != null) {
+      canvas.drawLine(
+        Offset(lastRect!.right, lastRect!.top - 2),
+        Offset(lastRect!.right, lastRect!.bottom + 2),
+        cursorPaint,
+      );
+      canvas.drawCircle(
+        Offset(lastRect!.right, lastRect!.top - 5),
+        3.0,
+        dotPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LoupeSelectionPainter oldDelegate) {
+    return oldDelegate.selectedGlobal != selectedGlobal ||
+        oldDelegate.blocks != blocks ||
+        oldDelegate.scale != scale;
   }
 }
