@@ -7,6 +7,7 @@ class CameraColors {
   static const teal = Color(0xFF008B8B);
   static const darkTeal = Color(0xFF005F5F);
   static const brown = Color(0xFF664C36);
+  static const caramel = Color(0xFFEAC096);
 
   // Selection overlay colors (used in text_overlay.dart)
   static const selectionDrag = Color(0x332196F3);

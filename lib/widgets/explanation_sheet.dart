@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/models/explanation.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
@@ -36,6 +37,41 @@ class ExplanationSheet extends StatelessWidget {
   }
 }
 
+class _SaveButton extends StatelessWidget {
+  const _SaveButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 20, top: 10),
+        child: GestureDetector(
+          onTap: () {
+            // TODO: manual save action
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: CameraColors.darkTeal, width: 1.5),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: const Text(
+              'Save',
+              style: TextStyle(
+                color: CameraColors.darkTeal,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ExplanationBody extends StatelessWidget {
   final String selectedText;
   final Explanation explanation;
@@ -47,57 +83,67 @@ class _ExplanationBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            selectedText,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SaveButton(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  selectedText,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                if (explanation.reading != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    explanation.reading!,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      color: CameraColors.brown,
+                    ),
+                  ),
+                ],
+                const Divider(height: 24, color: CameraColors.brown),
+                if (explanation.meaning != null)
+                  _Section(title: 'MEANING', child: Text(explanation.meaning!, style: const TextStyle(fontSize: 15, color: Colors.black))),
+                if (explanation.context != null)
+                  _Section(title: 'CONTEXT', child: Text(explanation.context!, style: const TextStyle(fontSize: 15, color: Colors.black))),
+                if (explanation.breakdown != null)
+                  _Section(title: 'BREAKDOWN', child: Text(explanation.breakdown!, style: const TextStyle(fontSize: 15, color: Colors.black))),
+                if (explanation.formality != null)
+                  _Section(title: 'FORMALITY', child: Text(explanation.formality!, style: const TextStyle(fontSize: 15, color: Colors.black))),
+                if (explanation.examples != null && explanation.examples!.isNotEmpty)
+                  _Section(
+                    title: 'EXAMPLES',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: explanation.examples!
+                          .map((e) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text('\u2022  $e', style: const TextStyle(fontSize: 15, color: Colors.black)),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                if (explanation.similarWords != null && explanation.similarWords!.isNotEmpty)
+                  _SimilarWordsSection(
+                    selectedText: selectedText,
+                    similarWords: explanation.similarWords!,
+                  ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
-          if (explanation.reading != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              explanation.reading!,
-              style: TextStyle(
-                fontSize: 16,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
-          ],
-          const Divider(height: 24),
-          if (explanation.meaning != null)
-            _Section(title: 'MEANING', child: Text(explanation.meaning!, style: const TextStyle(fontSize: 14))),
-          if (explanation.context != null)
-            _Section(title: 'CONTEXT', child: Text(explanation.context!, style: const TextStyle(fontSize: 14))),
-          if (explanation.breakdown != null)
-            _Section(title: 'BREAKDOWN', child: Text(explanation.breakdown!, style: const TextStyle(fontSize: 14))),
-          if (explanation.formality != null)
-            _Section(title: 'FORMALITY', child: Text(explanation.formality!, style: const TextStyle(fontSize: 14))),
-          if (explanation.examples != null && explanation.examples!.isNotEmpty)
-            _Section(
-              title: 'EXAMPLES',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: explanation.examples!
-                    .map((e) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Text('\u2022  $e', style: const TextStyle(fontSize: 14)),
-                        ))
-                    .toList(),
-              ),
-            ),
-          if (explanation.similarWords != null && explanation.similarWords!.isNotEmpty)
-            _SimilarWordsSection(
-              selectedText: selectedText,
-              similarWords: explanation.similarWords!,
-            ),
-          const SizedBox(height: 20),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -113,7 +159,6 @@ class _SimilarWordsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final settings = context.read<SettingsProvider>();
     final explanationProvider = context.read<ExplanationProvider>();
 
@@ -122,15 +167,15 @@ class _SimilarWordsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
             child: Text(
               'SIMILAR WORDS',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                color: CameraColors.brown,
               ),
             ),
           ),
@@ -152,18 +197,18 @@ class _SimilarWordsSection extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: theme.colorScheme.onSurface.withOpacity(0.3)),
+                        border: Border.all(color: CameraColors.brown),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(sw.word, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                          Text(sw.word, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
                           Text(
                             sw.reading,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              color: CameraColors.brown,
                             ),
                           ),
                         ],
@@ -188,8 +233,6 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: const EdgeInsets.only(top: 20),
       child: Column(
@@ -199,11 +242,11 @@ class _Section extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                color: CameraColors.brown,
               ),
             ),
           ),
@@ -221,8 +264,6 @@ class _ComparisonContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -230,12 +271,12 @@ class _ComparisonContent extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: provider.dismissComparison,
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back, size: 20, color: theme.colorScheme.onSurface),
-                const SizedBox(width: 4),
-                Text('Back', style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface)),
+                Icon(Icons.arrow_back, size: 20, color: CameraColors.brown),
+                SizedBox(width: 4),
+                Text('Back', style: TextStyle(fontSize: 14, color: CameraColors.brown)),
               ],
             ),
           ),
@@ -259,8 +300,6 @@ class _ComparisonBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -269,43 +308,43 @@ class _ComparisonBody extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(comparison.wordA.word, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(comparison.wordA.word, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
                 Text(
                   comparison.wordA.reading,
-                  style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                  style: const TextStyle(fontSize: 14, color: CameraColors.brown),
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'vs',
-                style: TextStyle(fontSize: 16, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                style: TextStyle(fontSize: 16, color: CameraColors.brown),
               ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(comparison.wordB.word, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(comparison.wordB.word, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
                 Text(
                   comparison.wordB.reading,
-                  style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                  style: const TextStyle(fontSize: 14, color: CameraColors.brown),
                 ),
               ],
             ),
           ],
         ),
-        const Divider(height: 24),
-        _Section(title: 'DIFFERENCE', child: Text(comparison.difference, style: const TextStyle(fontSize: 14))),
-        _Section(title: 'NUANCE', child: Text(comparison.nuance, style: const TextStyle(fontSize: 14))),
+        const Divider(height: 24, color: CameraColors.brown),
+        _Section(title: 'DIFFERENCE', child: Text(comparison.difference, style: const TextStyle(fontSize: 15, color: Colors.black))),
+        _Section(title: 'NUANCE', child: Text(comparison.nuance, style: const TextStyle(fontSize: 15, color: Colors.black))),
         _Section(
           title: 'EXAMPLES',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${comparison.wordA.word}: ${comparison.exampleA}', style: const TextStyle(fontSize: 14)),
+              Text('${comparison.wordA.word}: ${comparison.exampleA}', style: const TextStyle(fontSize: 15, color: Colors.black)),
               const SizedBox(height: 8),
-              Text('${comparison.wordB.word}: ${comparison.exampleB}', style: const TextStyle(fontSize: 14)),
+              Text('${comparison.wordB.word}: ${comparison.exampleB}', style: const TextStyle(fontSize: 15, color: Colors.black)),
             ],
           ),
         ),
@@ -322,26 +361,24 @@ class _ErrorContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
               size: 48,
-              color: theme.colorScheme.onSurface.withOpacity(0.4),
+              color: CameraColors.brown,
             ),
             const SizedBox(height: 16),
             Text(
               error,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: CameraColors.brown,
               ),
             ),
           ],

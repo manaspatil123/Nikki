@@ -8,10 +8,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
+import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/services/ocr/apple_ocr_service.dart';
-import 'package:nikki/theme/nikki_theme.dart';
 import 'package:nikki/widgets/explanation_sheet.dart';
 import 'package:nikki/widgets/handle_draggable_sheet.dart';
 import 'package:nikki/widgets/text_overlay.dart';
@@ -280,19 +280,16 @@ class _CameraScreenState extends State<CameraScreen>
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.black,
+      backgroundColor: CameraColors.linen,
       barrierColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (sheetContext) {
-        return Theme(
-          data: NikkiTheme.dark(),
-          child: const HandleDraggableSheet(
-            initialFraction: 0.45,
-            maxFraction: 0.85,
-            child: ExplanationSheet(),
-          ),
+        return const HandleDraggableSheet(
+          initialFraction: 0.45,
+          maxFraction: 0.85,
+          child: ExplanationSheet(),
         );
       },
     ).whenComplete(() {

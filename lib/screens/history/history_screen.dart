@@ -7,6 +7,7 @@ import 'package:nikki/models/word_entry.dart';
 import 'package:nikki/providers/history_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
+import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/widgets/explanation_sheet.dart';
 import 'package:nikki/widgets/handle_draggable_sheet.dart';
 
@@ -163,7 +164,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: CameraColors.linen,
       builder: (context) => const HandleDraggableSheet(
         initialFraction: 0.6,
         maxFraction: 0.9,

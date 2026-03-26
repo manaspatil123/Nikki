@@ -18,16 +18,25 @@ class Explanation {
   });
 
   factory Explanation.fromJson(Map<String, dynamic> json) => Explanation(
-    meaning: json['meaning'] as String?,
-    reading: json['reading'] as String?,
-    context: json['context'] as String?,
+    meaning: _asString(json['meaning']),
+    reading: _asString(json['reading']),
+    context: _asString(json['context']),
     examples: (json['examples'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
-    breakdown: json['breakdown'] as String?,
-    formality: json['formality'] as String?,
+    breakdown: _asString(json['breakdown']),
+    formality: _asString(json['formality']),
     similarWords: (json['similar_words'] as List<dynamic>?)
-        ?.map((e) => SimilarWord.fromJson(e as Map<String, dynamic>))
+        ?.whereType<Map<String, dynamic>>()
+        .map((e) => SimilarWord.fromJson(e))
         .toList(),
   );
+
+  /// Safely convert a value to String — handles cases where the API
+  /// returns a Map or other non-string type for a field.
+  static String? _asString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    return value.toString();
+  }
 
   Map<String, dynamic> toJson() => {
     if (meaning != null) 'meaning': meaning,
