@@ -7,6 +7,8 @@ class SettingsRepository {
   static const _keyTargetLang = 'target_language';
   static const _keyEnabledCategories = 'enabled_categories';
   static const _keyApiKey = 'openai_api_key';
+  static const _keyGoogleCloudApiKey = 'google_cloud_api_key';
+  static const _defaultGoogleCloudApiKey = 'AIzaSyA6L_yCAPQt0RWmHwWZF2CbCJRSDjFs65w';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -60,5 +62,13 @@ class SettingsRepository {
 
   Future<void> setApiKey(String key) async {
     await _secureStorage.write(key: _keyApiKey, value: key);
+  }
+
+  Future<String> getGoogleCloudApiKey() async {
+    return await _secureStorage.read(key: _keyGoogleCloudApiKey) ?? _defaultGoogleCloudApiKey;
+  }
+
+  Future<void> setGoogleCloudApiKey(String key) async {
+    await _secureStorage.write(key: _keyGoogleCloudApiKey, value: key);
   }
 }

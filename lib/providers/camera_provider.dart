@@ -41,14 +41,18 @@ class CameraProvider extends ChangeNotifier {
   String sourceLanguage = 'Japanese';
   String targetLanguage = 'English';
   bool dontSave = false;
-  bool isFrozen = false;
+  String googleCloudApiKey = '';
+
+  // Capture state
+  String? capturedImagePath;
+  bool get isCaptured => capturedImagePath != null;
+
   List<RecognizedBlock> recognizedBlocks = [];
   SelectedWord? selectedWord;
   bool showExplanation = false;
   Set<ExplanationCategory> enabledCategories = ExplanationCategory.values.toSet();
   int imageWidth = 0;
   int imageHeight = 0;
-  int rotationDegrees = 0;
 
   CameraProvider(this._novelRepository, this._settingsRepository) {
     _loadInitialData();
@@ -60,6 +64,7 @@ class CameraProvider extends ChangeNotifier {
       sourceLanguage = await _settingsRepository.getSourceLanguage();
       targetLanguage = await _settingsRepository.getTargetLanguage();
       enabledCategories = await _settingsRepository.getEnabledCategories();
+      googleCloudApiKey = await _settingsRepository.getGoogleCloudApiKey();
       notifyListeners();
     } catch (e) {
       debugPrint('CameraProvider._loadInitialData error: $e');
@@ -73,6 +78,12 @@ class CameraProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('CameraProvider.loadNovels error: $e');
     }
+  }
+
+  Future<void> setSourceLanguage(String language) async {
+    sourceLanguage = language;
+    await _settingsRepository.setSourceLanguage(language);
+    notifyListeners();
   }
 
   void selectNovel(Novel novel) {
@@ -94,23 +105,34 @@ class CameraProvider extends ChangeNotifier {
     }
   }
 
-  void onTextRecognized(
+  /// Called after a picture is taken and OCR completes.
+  void onPictureTaken(
+    String imagePath,
     List<RecognizedBlock> blocks,
     int width,
     int height,
-    int rotation,
   ) {
-    if (isFrozen) return;
+    capturedImagePath = imagePath;
     recognizedBlocks = blocks;
     imageWidth = width;
     imageHeight = height;
-    rotationDegrees = rotation;
     notifyListeners();
   }
 
-  void onWordSelected(RecognizedElement element, String blockText) {
+  /// Go back to live camera preview.
+  void retake() {
+    capturedImagePath = null;
+    recognizedBlocks = [];
+    selectedWord = null;
+    showExplanation = false;
+    imageWidth = 0;
+    imageHeight = 0;
+    notifyListeners();
+  }
+
+  void onTextSelected(String text, String blockText) {
     selectedWord = SelectedWord(
-      text: element.text,
+      text: text,
       surroundingContext: blockText,
     );
     showExplanation = true;
@@ -125,11 +147,6 @@ class CameraProvider extends ChangeNotifier {
 
   void toggleDontSave() {
     dontSave = !dontSave;
-    notifyListeners();
-  }
-
-  void toggleFreeze() {
-    isFrozen = !isFrozen;
     notifyListeners();
   }
 }

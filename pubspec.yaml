@@ -13,9 +13,6 @@ dependencies:
   # Camera
   camera: ^0.11.1
 
-  # ML Kit OCR
-  google_mlkit_text_recognition: ^0.14.0
-
   # State management
   provider: ^6.1.5
 

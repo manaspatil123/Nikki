@@ -4,14 +4,18 @@
 
 ## F1: Camera Scanner
 
-The entry point of the app. Visually similar to Google Translate's camera mode.
+The entry point of the app. Works **exactly like Google Translate's camera mode** — point at text, capture the page, see detected text overlaid on the image, and tap to interact.
+
+> **Detailed OCR pipeline spec:** See [07-camera-ocr-overlay.md](07-camera-ocr-overlay.md) for the complete technical specification of the capture-then-OCR pipeline, coordinate mapping, and rendering.
 
 ### Behavior
 
-1. App opens directly to a full-screen camera view.
-2. Real-time OCR processes the camera feed and overlays recognized text on screen.
-3. User taps or long-presses to select a **word** or **phrase** from the overlay.
-4. Selection triggers the **Explanation Card** (F2).
+1. App opens directly to a full-screen camera view (live preview, no OCR yet).
+2. User taps the **Capture button** (bottom-center) to take a picture.
+3. The captured image is displayed full-screen. OCR runs on the high-quality captured image and overlays recognized text — **Google Translate style**: white background fills over detected text regions with the recognized text rendered on top, precisely aligned with the original.
+4. User taps to select a **word** from the overlay.
+5. Selection triggers the **Explanation Card** (F2).
+6. User taps the **Retake button** (same position, now shows refresh icon) to return to live camera preview.
 
 ### Controls on Camera Screen
 
@@ -22,12 +26,12 @@ The entry point of the app. Visually similar to Google Translate's camera mode.
 | "Don't Save" toggle | Bottom-left | When ON, lookups are NOT saved to history |
 | History button | Bottom-right | Navigate to History screen (F4) |
 | Novel selector | Top-center | Select or create the current novel name (for history grouping) |
-| Capture button (optional) | Bottom-center | Freeze frame for easier selection on dense pages |
+| Capture button | Bottom-center | Takes a picture and runs OCR on it |
+| Retake button | Bottom-center (after capture) | Returns to live camera preview |
 
 ### Text Selection
 
 - **Single tap:** Select the tapped word.
-- **Long press + drag:** Select a phrase (multiple words).
 - Selected text is highlighted with a white background and black border.
 
 ---

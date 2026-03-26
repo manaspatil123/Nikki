@@ -1,3 +1,5 @@
+import 'dart:io' show File;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -19,21 +21,34 @@ class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
   final OcrService _ocrService = OcrService();
-  bool _isProcessing = false;
   bool _permissionGranted = false;
   bool _permissionPermanentlyDenied = false;
   List<CameraDescription>? _cameras;
   CameraDescription? _selectedCamera;
   bool _isShowingExplanation = false;
+  bool _isTakingPicture = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkPermissionAndInit();
+    _checkCurrentStatus();
   }
 
-  Future<void> _checkPermissionAndInit() async {
+  Future<void> _checkCurrentStatus() async {
+    final status = await Permission.camera.status;
+    if (!mounted) return;
+    if (status.isGranted) {
+      setState(() => _permissionGranted = true);
+      await _initCamera();
+    } else {
+      setState(() {
+        _permissionPermanentlyDenied = status.isPermanentlyDenied;
+      });
+    }
+  }
+
+  Future<void> _requestPermissionAndInit() async {
     final status = await Permission.camera.request();
     if (!mounted) return;
     setState(() {
@@ -56,75 +71,80 @@ class _CameraScreenState extends State<CameraScreen>
 
     _controller = CameraController(
       _selectedCamera!,
-      ResolutionPreset.high,
+      ResolutionPreset.max,
       enableAudio: false,
     );
 
     await _controller!.initialize();
     if (!mounted) return;
     setState(() {});
-    _startImageStream();
   }
 
-  void _startImageStream() {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-    final cameraProvider = context.read<CameraProvider>();
-    _controller!.startImageStream((image) {
-      if (_isProcessing || cameraProvider.isFrozen) return;
-      _isProcessing = true;
-      _processImage(image).then((_) {
-        _isProcessing = false;
-      });
-    });
-  }
-
-  void _stopImageStream() {
-    try {
-      _controller?.stopImageStream();
-    } catch (_) {
-      // Stream may not be running
+  Future<void> _takePicture() async {
+    if (_controller == null ||
+        !_controller!.value.isInitialized ||
+        _isTakingPicture) {
+      return;
     }
-  }
 
-  Future<void> _processImage(CameraImage image) async {
-    if (_selectedCamera == null) return;
-
-    final inputImage = _ocrService.buildInputImage(image, _selectedCamera!);
-    if (inputImage == null) return;
+    setState(() => _isTakingPicture = true);
 
     try {
-      final blocks = await _ocrService.processImage(inputImage);
+      final xFile = await _controller!.takePicture();
       if (!mounted) return;
 
       final cameraProvider = context.read<CameraProvider>();
-      cameraProvider.onTextRecognized(
-        blocks,
-        image.width,
-        image.height,
-        _selectedCamera!.sensorOrientation,
+      final result = await _ocrService.processImageFile(
+        xFile.path,
+        cameraProvider.sourceLanguage,
+        cameraProvider.googleCloudApiKey,
+      );
+      if (!mounted) return;
+
+      cameraProvider.onPictureTaken(
+        xFile.path,
+        result.blocks,
+        result.width,
+        result.height,
       );
     } catch (e) {
-      debugPrint('OCR processing error: $e');
+      debugPrint('Take picture error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$e'),
+            backgroundColor: Colors.red.shade900,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isTakingPicture = false);
     }
+  }
+
+  void _retake() {
+    context.read<CameraProvider>().retake();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      _stopImageStream();
       _controller?.dispose();
       _controller = null;
+      if (mounted) setState(() {});
     } else if (state == AppLifecycleState.resumed) {
-      _initCamera();
+      if (!_permissionGranted) {
+        _checkCurrentStatus();
+      } else {
+        _initCamera();
+      }
     }
   }
 
-  void _onWordSelected(RecognizedElement element, String blockText) {
+  void _onTextSelected(String selectedText, String blockText) {
     final cameraProvider = context.read<CameraProvider>();
-    cameraProvider.onWordSelected(element, blockText);
+    cameraProvider.onTextSelected(selectedText, blockText);
     _showExplanationSheet();
   }
 
@@ -421,29 +441,7 @@ class _CameraScreenState extends State<CameraScreen>
           ],
         );
       },
-    );
-    controller.dispose;
-  }
-
-  String _languageAbbreviation(String language) {
-    switch (language.toLowerCase()) {
-      case 'japanese':
-        return 'JP';
-      case 'english':
-        return 'EN';
-      case 'chinese':
-        return 'ZH';
-      case 'korean':
-        return 'KR';
-      case 'french':
-        return 'FR';
-      case 'german':
-        return 'DE';
-      case 'spanish':
-        return 'ES';
-      default:
-        return language.substring(0, 2).toUpperCase();
-    }
+    ).then((_) => controller.dispose());
   }
 
   @override
@@ -485,7 +483,7 @@ class _CameraScreenState extends State<CameraScreen>
                 OutlinedButton(
                   onPressed: _permissionPermanentlyDenied
                       ? () => openAppSettings()
-                      : _checkPermissionAndInit,
+                      : _requestPermissionAndInit,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white54),
@@ -516,32 +514,49 @@ class _CameraScreenState extends State<CameraScreen>
       backgroundColor: Colors.black,
       body: Consumer<CameraProvider>(
         builder: (context, cameraProvider, _) {
+          // Guard against disposed controller during rebuild
+          final controller = _controller;
+          if (controller == null || !controller.value.isInitialized) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            );
+          }
+
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Full screen camera preview
-              SizedBox.expand(
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: _controller!.value.previewSize!.height,
-                    height: _controller!.value.previewSize!.width,
-                    child: CameraPreview(_controller!),
+              // Show captured image or live camera preview
+              if (cameraProvider.isCaptured)
+                SizedBox.expand(
+                  child: Image.file(
+                    File(cameraProvider.capturedImagePath!),
+                    fit: BoxFit.cover,
+                  ),
+                )
+              else
+                SizedBox.expand(
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: controller.value.previewSize!.height,
+                      height: controller.value.previewSize!.width,
+                      child: CameraPreview(controller),
+                    ),
                   ),
                 ),
-              ),
 
-              // Text overlay
-              Positioned.fill(
-                child: TextOverlay(
-                  blocks: cameraProvider.recognizedBlocks,
-                  selectedWord: cameraProvider.selectedWord,
-                  imageWidth: cameraProvider.imageWidth,
-                  imageHeight: cameraProvider.imageHeight,
-                  rotationDegrees: cameraProvider.rotationDegrees,
-                  onElementTapped: _onWordSelected,
+              // Text overlay (only when captured and OCR results exist)
+              if (cameraProvider.isCaptured)
+                Positioned.fill(
+                  child: TextOverlay(
+                    blocks: cameraProvider.recognizedBlocks,
+                    selectedWord: cameraProvider.selectedWord,
+                    imageWidth: cameraProvider.imageWidth,
+                    imageHeight: cameraProvider.imageHeight,
+                    rotationDegrees: 0, // EXIF rotation already handled
+                    onSelectionComplete: _onTextSelected,
+                  ),
                 ),
-              ),
 
               // Top bar
               Positioned(
@@ -552,34 +567,80 @@ class _CameraScreenState extends State<CameraScreen>
                   bottom: false,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
+                      horizontal: 12,
                       vertical: 8,
                     ),
                     color: Colors.black.withOpacity(0.5),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Source language chip
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.white54),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            _languageAbbreviation(
-                              cameraProvider.sourceLanguage,
+                        // "Translate from" language dropdown
+                        PopupMenuButton<String>(
+                          color: Colors.black,
+                          offset: const Offset(0, 40),
+                          onSelected: (value) {
+                            cameraProvider.setSourceLanguage(value);
+                          },
+                          itemBuilder: (context) {
+                            const languages = [
+                              'Japanese',
+                              'Chinese',
+                              'Korean',
+                              'English',
+                              'French',
+                              'German',
+                              'Spanish',
+                            ];
+                            return languages.map((lang) {
+                              final isSelected =
+                                  cameraProvider.sourceLanguage == lang;
+                              return PopupMenuItem<String>(
+                                value: lang,
+                                child: Text(
+                                  lang,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.white70,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              );
+                            }).toList();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
                             ),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.white54),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  cameraProvider.sourceLanguage,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.white54,
+                                  size: 18,
+                                ),
+                              ],
                             ),
                           ),
                         ),
+
+                        const Spacer(),
 
                         // Novel selector
                         Flexible(
@@ -660,7 +721,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   Flexible(
                                     child: Text(
                                       cameraProvider.selectedNovel?.name ??
-                                          'Tap to add novel',
+                                          'Select novel',
                                       style: TextStyle(
                                         color:
                                             cameraProvider.selectedNovel !=
@@ -681,28 +742,6 @@ class _CameraScreenState extends State<CameraScreen>
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-                        ),
-
-                        // Target language chip
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.white54),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            _languageAbbreviation(
-                              cameraProvider.targetLanguage,
-                            ),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -758,22 +797,17 @@ class _CameraScreenState extends State<CameraScreen>
                           ),
                         ),
 
-                        // Freeze button
+                        // Capture / Retake button
                         GestureDetector(
-                          onTap: () {
-                            cameraProvider.toggleFreeze();
-                            if (cameraProvider.isFrozen) {
-                              _stopImageStream();
-                            } else {
-                              _startImageStream();
-                            }
-                          },
+                          onTap: cameraProvider.isCaptured
+                              ? _retake
+                              : _takePicture,
                           child: Container(
                             width: 56,
                             height: 56,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: cameraProvider.isFrozen
+                              color: cameraProvider.isCaptured
                                   ? Colors.white
                                   : Colors.transparent,
                               border: Border.all(
@@ -781,15 +815,23 @@ class _CameraScreenState extends State<CameraScreen>
                                 width: 2,
                               ),
                             ),
-                            child: Icon(
-                              cameraProvider.isFrozen
-                                  ? Icons.play_arrow
-                                  : Icons.camera_alt_outlined,
-                              color: cameraProvider.isFrozen
-                                  ? Colors.black
-                                  : Colors.white,
-                              size: 28,
-                            ),
+                            child: _isTakingPicture
+                                ? const Padding(
+                                    padding: EdgeInsets.all(14),
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    cameraProvider.isCaptured
+                                        ? Icons.refresh
+                                        : Icons.camera_alt_outlined,
+                                    color: cameraProvider.isCaptured
+                                        ? Colors.black
+                                        : Colors.white,
+                                    size: 28,
+                                  ),
                           ),
                         ),
 

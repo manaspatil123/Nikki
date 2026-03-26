@@ -96,7 +96,16 @@ class SettingsScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 24),
-                  _SectionHeader('API KEY'),
+                  _SectionHeader('GOOGLE CLOUD API KEY'),
+                  _ApiKeyRow(
+                    apiKey: settings.googleCloudApiKey,
+                    showApiKey: settings.showGoogleCloudApiKey,
+                    onToggleVisibility: settings.toggleShowGoogleCloudApiKey,
+                    onTap: () => _showGoogleCloudApiKeyDialog(context, settings),
+                  ),
+
+                  const SizedBox(height: 24),
+                  _SectionHeader('OPENAI API KEY'),
                   _ApiKeyRow(
                     apiKey: settings.apiKey,
                     showApiKey: settings.showApiKey,
@@ -169,6 +178,35 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  void _showGoogleCloudApiKeyDialog(BuildContext context, SettingsProvider settings) {
+    final controller = TextEditingController(text: settings.googleCloudApiKey);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Google Cloud API Key'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'AIza...'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              settings.setGoogleCloudApiKey(controller.text.trim());
+              Navigator.pop(ctx);
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }

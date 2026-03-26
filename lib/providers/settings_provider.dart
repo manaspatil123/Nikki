@@ -10,6 +10,8 @@ class SettingsProvider extends ChangeNotifier {
   Set<ExplanationCategory> enabledCategories = ExplanationCategory.values.toSet();
   String apiKey = '';
   bool showApiKey = false;
+  String googleCloudApiKey = '';
+  bool showGoogleCloudApiKey = false;
   bool isLoaded = false;
 
   SettingsProvider(this._settingsRepository) {
@@ -22,6 +24,7 @@ class SettingsProvider extends ChangeNotifier {
       targetLanguage = await _settingsRepository.getTargetLanguage();
       enabledCategories = await _settingsRepository.getEnabledCategories();
       apiKey = await _settingsRepository.getApiKey();
+      googleCloudApiKey = await _settingsRepository.getGoogleCloudApiKey();
       isLoaded = true;
       notifyListeners();
     } catch (e) {
@@ -75,6 +78,21 @@ class SettingsProvider extends ChangeNotifier {
 
   void toggleShowApiKey() {
     showApiKey = !showApiKey;
+    notifyListeners();
+  }
+
+  Future<void> setGoogleCloudApiKey(String key) async {
+    googleCloudApiKey = key;
+    notifyListeners();
+    try {
+      await _settingsRepository.setGoogleCloudApiKey(key);
+    } catch (e) {
+      debugPrint('SettingsProvider.setGoogleCloudApiKey error: $e');
+    }
+  }
+
+  void toggleShowGoogleCloudApiKey() {
+    showGoogleCloudApiKey = !showGoogleCloudApiKey;
     notifyListeners();
   }
 }

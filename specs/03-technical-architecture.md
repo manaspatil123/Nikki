@@ -27,7 +27,7 @@
 | Cost | Free | $1.50 per 1000 requests |
 | Latency | ~50-100ms (on-device) | 500ms+ (network round-trip) |
 | Offline | Yes | No |
-| Japanese support | Yes (bundled model) | Yes |
+| Japanese support | Yes (requires explicit `implementation` dependency in app-level build.gradle — the Flutter package only includes it as `compileOnly`) | Yes |
 | Accuracy | Good (sufficient for printed novel text) | Slightly better |
 | Privacy | Text never leaves device | Text sent to Google servers |
 
