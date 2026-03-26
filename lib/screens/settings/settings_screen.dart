@@ -6,7 +6,9 @@ import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/providers/history_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final VoidCallback? onBack;
+
+  const SettingsScreen({super.key, this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +27,7 @@ class SettingsScreen extends StatelessWidget {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: onBack ?? () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 12),
                   const Text(

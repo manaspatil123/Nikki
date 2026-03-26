@@ -14,12 +14,14 @@ class NikkiDatabase {
     final path = join(await getDatabasesPath(), 'nikki.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE novels (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            author TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
             sourceLanguage TEXT NOT NULL,
             targetLanguage TEXT NOT NULL,
             createdAt INTEGER NOT NULL,
@@ -40,7 +42,6 @@ class NikkiDatabase {
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          // Make novelId nullable by recreating the table
           await db.execute('''
             CREATE TABLE word_entries_v2 (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,6 +56,10 @@ class NikkiDatabase {
           await db.execute('DROP TABLE word_entries');
           await db.execute('ALTER TABLE word_entries_v2 RENAME TO word_entries');
           await db.execute('CREATE INDEX idx_word_entries_novel ON word_entries(novelId)');
+        }
+        if (oldVersion < 3) {
+          await db.execute("ALTER TABLE novels ADD COLUMN author TEXT NOT NULL DEFAULT ''");
+          await db.execute("ALTER TABLE novels ADD COLUMN description TEXT NOT NULL DEFAULT ''");
         }
       },
     );
