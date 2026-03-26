@@ -17,11 +17,15 @@ class ExplanationProvider extends ChangeNotifier {
   String surroundingContext = '';
   Explanation? explanation;
   String? error;
+  bool isSaved = false;
   bool showComparison = false;
   SimilarWord? comparisonTarget;
   ComparisonResult? comparison;
   bool isComparisonLoading = false;
   String? comparisonError;
+
+  // Stored from the explain() call so save can use them
+  int? _novelId;
 
   ExplanationProvider(
     this._openAiService,
@@ -39,7 +43,9 @@ class ExplanationProvider extends ChangeNotifier {
   }) async {
     this.selectedText = selectedText;
     this.surroundingContext = surroundingContext;
+    _novelId = novelId;
     isLoading = true;
+    isSaved = false;
     error = null;
     explanation = null;
     showComparison = false;
@@ -64,25 +70,30 @@ class ExplanationProvider extends ChangeNotifier {
       explanation = result;
       isLoading = false;
       notifyListeners();
-
-      if (!dontSave && novelId != null) {
-        try {
-          final entry = WordEntry(
-            novelId: novelId,
-            selectedText: selectedText,
-            surroundingContext: surroundingContext,
-            explanationJson: jsonEncode(result.toJson()),
-            createdAt: DateTime.now().millisecondsSinceEpoch,
-          );
-          await _wordRepository.insert(entry);
-        } catch (e) {
-          debugPrint('ExplanationProvider: failed to save entry: $e');
-        }
-      }
     } catch (e) {
       error = e.toString();
       isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Manually save the current explanation to history.
+  Future<void> saveToHistory() async {
+    if (explanation == null || isSaved) return;
+
+    try {
+      final entry = WordEntry(
+        novelId: _novelId,
+        selectedText: selectedText,
+        surroundingContext: surroundingContext,
+        explanationJson: jsonEncode(explanation!.toJson()),
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      await _wordRepository.insert(entry);
+      isSaved = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ExplanationProvider.saveToHistory error: $e');
     }
   }
 
@@ -132,6 +143,7 @@ class ExplanationProvider extends ChangeNotifier {
     this.selectedText = selectedText;
     explanation = Explanation.fromJson(jsonDecode(explanationJson));
     isLoading = false;
+    isSaved = true; // already in history
     error = null;
     notifyListeners();
   }
@@ -142,6 +154,8 @@ class ExplanationProvider extends ChangeNotifier {
     surroundingContext = '';
     explanation = null;
     error = null;
+    isSaved = false;
+    _novelId = null;
     showComparison = false;
     comparisonTarget = null;
     comparison = null;

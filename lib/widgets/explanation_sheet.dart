@@ -6,8 +6,17 @@ import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/widgets/shimmer_box.dart';
 
+enum ExplanationSheetMode { camera, history }
+
 class ExplanationSheet extends StatelessWidget {
-  const ExplanationSheet({super.key});
+  final ExplanationSheetMode mode;
+  final VoidCallback? onRemove;
+
+  const ExplanationSheet({
+    super.key,
+    this.mode = ExplanationSheetMode.camera,
+    this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +42,8 @@ class ExplanationSheet extends StatelessWidget {
     return _ExplanationBody(
       selectedText: provider.selectedText,
       explanation: explanation,
+      mode: mode,
+      onRemove: onRemove,
     );
   }
 }
@@ -42,13 +53,49 @@ class _SaveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<ExplanationProvider>();
+    final saved = provider.isSaved;
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 20, top: 10),
+        child: GestureDetector(
+          onTap: saved ? null : () => provider.saveToHistory(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+            decoration: BoxDecoration(
+              color: saved ? CameraColors.darkTeal : Colors.white,
+              border: Border.all(color: CameraColors.darkTeal, width: 1.5),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Text(
+              saved ? 'Saved' : 'Save',
+              style: TextStyle(
+                color: saved ? Colors.white : CameraColors.darkTeal,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddToNovelButton extends StatelessWidget {
+  const _AddToNovelButton();
+
+  @override
+  Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerRight,
       child: Padding(
         padding: const EdgeInsets.only(right: 20, top: 10),
         child: GestureDetector(
           onTap: () {
-            // TODO: manual save action
+            // TODO: add to novel
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
@@ -58,7 +105,7 @@ class _SaveButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(24),
             ),
             child: const Text(
-              'Save',
+              'Add to novel',
               style: TextStyle(
                 color: CameraColors.darkTeal,
                 fontSize: 14,
@@ -72,21 +119,62 @@ class _SaveButton extends StatelessWidget {
   }
 }
 
+class _RemoveButton extends StatelessWidget {
+  final VoidCallback? onRemove;
+
+  const _RemoveButton({required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        onRemove?.call();
+        Navigator.of(context).pop();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: CameraColors.dangerBorder, width: 2.0),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Text(
+          'Remove from History',
+          style: TextStyle(
+            color: CameraColors.dangerBorder,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ExplanationBody extends StatelessWidget {
   final String selectedText;
   final Explanation explanation;
+  final ExplanationSheetMode mode;
+  final VoidCallback? onRemove;
 
   const _ExplanationBody({
     required this.selectedText,
     required this.explanation,
+    required this.mode,
+    this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isHistory = mode == ExplanationSheetMode.history;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SaveButton(),
+        if (isHistory)
+          const _AddToNovelButton()
+        else
+          const _SaveButton(),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -133,11 +221,15 @@ class _ExplanationBody extends StatelessWidget {
                           .toList(),
                     ),
                   ),
-                if (explanation.similarWords != null && explanation.similarWords!.isNotEmpty)
+                if (!isHistory && explanation.similarWords != null && explanation.similarWords!.isNotEmpty)
                   _SimilarWordsSection(
                     selectedText: selectedText,
                     similarWords: explanation.similarWords!,
                   ),
+                if (isHistory) ...[
+                  const SizedBox(height: 24),
+                  Center(child: _RemoveButton(onRemove: onRemove)),
+                ],
                 const SizedBox(height: 20),
               ],
             ),

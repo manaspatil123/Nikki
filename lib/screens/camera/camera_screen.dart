@@ -205,8 +205,14 @@ class _CameraScreenState extends State<CameraScreen>
         result.height,
       );
 
-      _stopCamera();
-      if (mounted) setState(() {});
+      // Let the captured image layer render first, then stop camera
+      // on the next frame to avoid a black flash.
+      if (mounted) {
+        setState(() {});
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _stopCamera();
+        });
+      }
     } catch (e) {
       debugPrint('Take picture error: $e');
       if (mounted) {

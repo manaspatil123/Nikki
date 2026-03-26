@@ -9,6 +9,11 @@ class CameraColors {
   static const brown = Color(0xFF664C36);
   static const caramel = Color(0xFFEAC096);
 
+  // Danger / remove colors
+  static const dangerBg = Color(0xFFFFA896);
+  static const dangerBorder = Color(0xFFCD1C18);
+  static const dangerText = Color(0xFF38000A);
+
   // Selection overlay colors (used in text_overlay.dart)
   static const selectionDrag = Color(0x332196F3);
   static const selectionFinal = Color(0x662196F3);

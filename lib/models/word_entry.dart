@@ -1,6 +1,6 @@
 class WordEntry {
   final int? id;
-  final int novelId;
+  final int? novelId;
   final String selectedText;
   final String surroundingContext;
   final String explanationJson; // full AI response as JSON string
@@ -8,7 +8,7 @@ class WordEntry {
 
   WordEntry({
     this.id,
-    required this.novelId,
+    this.novelId,
     required this.selectedText,
     required this.surroundingContext,
     required this.explanationJson,
@@ -26,7 +26,7 @@ class WordEntry {
 
   factory WordEntry.fromMap(Map<String, dynamic> map) => WordEntry(
     id: map['id'] as int?,
-    novelId: map['novelId'] as int,
+    novelId: map['novelId'] as int?,
     selectedText: map['selectedText'] as String,
     surroundingContext: map['surroundingContext'] as String,
     explanationJson: map['explanationJson'] as String,

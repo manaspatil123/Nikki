@@ -27,7 +27,7 @@ class NikkiApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => CameraProvider(novelRepo, settingsRepo)),
         ChangeNotifierProvider(create: (_) => ExplanationProvider(openAiService, wordRepo, settingsRepo)),
-        ChangeNotifierProvider(create: (_) => HistoryProvider(novelRepo, wordRepo)),
+        ChangeNotifierProvider(create: (_) => HistoryProvider(wordRepo)),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepo)),
       ],
       child: MaterialApp(

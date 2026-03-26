@@ -14,7 +14,7 @@ class NikkiDatabase {
     final path = join(await getDatabasesPath(), 'nikki.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE novels (
@@ -29,15 +29,33 @@ class NikkiDatabase {
         await db.execute('''
           CREATE TABLE word_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            novelId INTEGER NOT NULL,
+            novelId INTEGER,
             selectedText TEXT NOT NULL,
             surroundingContext TEXT NOT NULL,
             explanationJson TEXT NOT NULL,
-            createdAt INTEGER NOT NULL,
-            FOREIGN KEY (novelId) REFERENCES novels(id) ON DELETE CASCADE
+            createdAt INTEGER NOT NULL
           )
         ''');
         await db.execute('CREATE INDEX idx_word_entries_novel ON word_entries(novelId)');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Make novelId nullable by recreating the table
+          await db.execute('''
+            CREATE TABLE word_entries_v2 (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              novelId INTEGER,
+              selectedText TEXT NOT NULL,
+              surroundingContext TEXT NOT NULL,
+              explanationJson TEXT NOT NULL,
+              createdAt INTEGER NOT NULL
+            )
+          ''');
+          await db.execute('INSERT INTO word_entries_v2 SELECT * FROM word_entries');
+          await db.execute('DROP TABLE word_entries');
+          await db.execute('ALTER TABLE word_entries_v2 RENAME TO word_entries');
+          await db.execute('CREATE INDEX idx_word_entries_novel ON word_entries(novelId)');
+        }
       },
     );
   }
