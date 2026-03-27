@@ -12,6 +12,7 @@ class SettingsProvider extends ChangeNotifier {
   bool showApiKey = false;
   String googleCloudApiKey = '';
   bool showGoogleCloudApiKey = false;
+  bool useGoogleOcr = false;
   bool isLoaded = false;
 
   SettingsProvider(this._settingsRepository) {
@@ -25,6 +26,7 @@ class SettingsProvider extends ChangeNotifier {
       enabledCategories = await _settingsRepository.getEnabledCategories();
       apiKey = await _settingsRepository.getApiKey();
       googleCloudApiKey = await _settingsRepository.getGoogleCloudApiKey();
+      useGoogleOcr = await _settingsRepository.getUseGoogleOcr();
       isLoaded = true;
       notifyListeners();
     } catch (e) {
@@ -94,5 +96,15 @@ class SettingsProvider extends ChangeNotifier {
   void toggleShowGoogleCloudApiKey() {
     showGoogleCloudApiKey = !showGoogleCloudApiKey;
     notifyListeners();
+  }
+
+  Future<void> toggleUseGoogleOcr() async {
+    useGoogleOcr = !useGoogleOcr;
+    notifyListeners();
+    try {
+      await _settingsRepository.setUseGoogleOcr(useGoogleOcr);
+    } catch (e) {
+      debugPrint('SettingsProvider.toggleUseGoogleOcr error: $e');
+    }
   }
 }

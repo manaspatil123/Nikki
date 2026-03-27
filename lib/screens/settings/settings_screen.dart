@@ -75,6 +75,32 @@ class SettingsScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 24),
+                  _SectionHeader('OCR ENGINE'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Use Google Cloud Vision', style: TextStyle(fontSize: 14)),
+                              Text(
+                                'Online, requires API key. Better for some layouts.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: settings.useGoogleOcr,
+                          onChanged: (_) => settings.toggleUseGoogleOcr(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
                   _SectionHeader('GOOGLE CLOUD API KEY'),
                   _ApiKeyRow(
                     apiKey: settings.googleCloudApiKey,

@@ -64,6 +64,13 @@ class TextRecognitionPlugin: NSObject {
             request.recognitionLanguages = languages
             request.usesLanguageCorrection = true
 
+            // Revision 3 (iOS 17+) dramatically improves vertical CJK text
+            // recognition — same engine the Photos app uses.
+            if #available(iOS 17.0, *) {
+                request.revision = VNRecognizeTextRequestRevision3
+                request.automaticallyDetectsLanguage = true
+            }
+
             let handler = VNImageRequestHandler(
                 cgImage: cgImage,
                 orientation: orientation,

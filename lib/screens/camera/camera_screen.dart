@@ -11,7 +11,10 @@ import 'package:sensors_plus/sensors_plus.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
+import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/services/ocr/apple_ocr_service.dart';
+import 'package:nikki/services/ocr/ocr_service.dart';
+import 'package:nikki/models/ocr.dart';
 import 'package:nikki/widgets/explanation_sheet.dart';
 import 'package:nikki/widgets/handle_draggable_sheet.dart';
 import 'package:nikki/widgets/text_overlay.dart';
@@ -32,7 +35,8 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
-  final AppleOcrService _ocrService = AppleOcrService();
+  final AppleOcrService _appleOcrService = AppleOcrService();
+  final OcrService _googleOcrService = OcrService();
   bool _permissionGranted = false;
   bool _permissionPermanentlyDenied = false;
   List<CameraDescription>? _cameras;
@@ -192,10 +196,21 @@ class _CameraScreenState extends State<CameraScreen>
       if (!mounted) return;
 
       final cameraProvider = context.read<CameraProvider>();
-      final result = await _ocrService.processImageFile(
-        xFile.path,
-        cameraProvider.sourceLanguage,
-      );
+      final settings = context.read<SettingsProvider>();
+
+      final OcrResult result;
+      if (settings.useGoogleOcr) {
+        result = await _googleOcrService.processImageFile(
+          xFile.path,
+          cameraProvider.sourceLanguage,
+          settings.googleCloudApiKey,
+        );
+      } else {
+        result = await _appleOcrService.processImageFile(
+          xFile.path,
+          cameraProvider.sourceLanguage,
+        );
+      }
       if (!mounted) return;
 
       cameraProvider.onPictureTaken(
@@ -313,7 +328,8 @@ class _CameraScreenState extends State<CameraScreen>
     _idleTimer?.cancel();
     _accelSub?.cancel();
     _controller?.dispose();
-    _ocrService.dispose();
+    _appleOcrService.dispose();
+    _googleOcrService.dispose();
     super.dispose();
   }
 

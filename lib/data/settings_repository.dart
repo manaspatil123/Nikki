@@ -8,6 +8,7 @@ class SettingsRepository {
   static const _keyEnabledCategories = 'enabled_categories';
   static const _keyApiKey = 'openai_api_key';
   static const _keyGoogleCloudApiKey = 'google_cloud_api_key';
+  static const _keyUseGoogleOcr = 'use_google_ocr';
   static const _defaultGoogleCloudApiKey = 'AIzaSyA6L_yCAPQt0RWmHwWZF2CbCJRSDjFs65w';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -70,5 +71,15 @@ class SettingsRepository {
 
   Future<void> setGoogleCloudApiKey(String key) async {
     await _secureStorage.write(key: _keyGoogleCloudApiKey, value: key);
+  }
+
+  Future<bool> getUseGoogleOcr() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyUseGoogleOcr) ?? false;
+  }
+
+  Future<void> setUseGoogleOcr(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyUseGoogleOcr, value);
   }
 }
