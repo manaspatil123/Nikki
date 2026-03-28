@@ -33,7 +33,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   CameraController? _controller;
   final AppleOcrService _appleOcrService = AppleOcrService();
   final OcrService _googleOcrService = OcrService();
@@ -43,6 +43,9 @@ class _CameraScreenState extends State<CameraScreen>
   CameraDescription? _selectedCamera;
   bool _isShowingExplanation = false;
   bool _isTakingPicture = false;
+  final TransformationController _transformController = TransformationController();
+  AnimationController? _panAnimController;
+  double _currentPanY = 0;
 
   // Camera idle sleep
   static const _idleTimeout = Duration(seconds: 8);
@@ -89,26 +92,43 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+  bool _isInitializing = false;
+
   Future<void> _initCamera() async {
-    _cameras = await availableCameras();
-    if (_cameras == null || _cameras!.isEmpty) return;
+    if (_isInitializing) return;
+    _isInitializing = true;
 
-    _selectedCamera = _cameras!.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.back,
-      orElse: () => _cameras!.first,
-    );
+    try {
+      // Dispose any existing controller first.
+      _controller?.dispose();
+      _controller = null;
 
-    _controller = CameraController(
-      _selectedCamera!,
-      ResolutionPreset.max,
-      enableAudio: false,
-    );
+      _cameras = await availableCameras();
+      if (_cameras == null || _cameras!.isEmpty || !mounted) return;
 
-    await _controller!.initialize();
-    if (!mounted) return;
-    _cameraSleeping = false;
-    _resetIdleTimer();
-    setState(() {});
+      _selectedCamera = _cameras!.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => _cameras!.first,
+      );
+
+      final controller = CameraController(
+        _selectedCamera!,
+        ResolutionPreset.max,
+        enableAudio: false,
+      );
+
+      _controller = controller;
+      await controller.initialize();
+      if (!mounted || _controller != controller) return;
+
+      _cameraSleeping = false;
+      _resetIdleTimer();
+      setState(() {});
+    } catch (e) {
+      debugPrint('Camera init error: $e');
+    } finally {
+      _isInitializing = false;
+    }
   }
 
   void _stopCamera() {
@@ -247,6 +267,8 @@ class _CameraScreenState extends State<CameraScreen>
     final cameraProvider = context.read<CameraProvider>();
     final oldPath = cameraProvider.capturedImagePath;
     _lastFramePath = oldPath;
+    _currentPanY = 0;
+    _transformController.value = Matrix4.identity();
     cameraProvider.retake();
     _initCamera();
     Future.delayed(const Duration(seconds: 2), () => _deleteTempFile(oldPath));
@@ -270,10 +292,40 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  void _onTextSelected(String selectedText, String blockText) {
+  void _onTextSelected(String selectedText, String blockText, [double selectionNormalizedY = 0]) {
     final cameraProvider = context.read<CameraProvider>();
     cameraProvider.onTextSelected(selectedText, blockText);
+
+    if (selectionNormalizedY > 0.45) {
+      final screenHeight = MediaQuery.of(context).size.height;
+      final targetPanY = -(selectionNormalizedY - 0.3) * screenHeight;
+      _animatePanTo(targetPanY);
+    }
+
     _showExplanationSheet();
+  }
+
+  void _animatePanTo(double targetY) {
+    _panAnimController?.dispose();
+    _panAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    final startY = _currentPanY;
+    final animation = Tween<double>(begin: startY, end: targetY).animate(
+      CurvedAnimation(parent: _panAnimController!, curve: Curves.easeInOut),
+    );
+    animation.addListener(() {
+      _currentPanY = animation.value;
+      _transformController.value = Matrix4.identity()
+        ..setTranslationRaw(0, _currentPanY, 0);
+    });
+    _panAnimController!.forward();
+  }
+
+  void _resetPan() {
+    if (_currentPanY == 0) return;
+    _animatePanTo(0);
   }
 
   void _showExplanationSheet() {
@@ -316,6 +368,7 @@ class _CameraScreenState extends State<CameraScreen>
     ).whenComplete(() {
       _isShowingExplanation = false;
       if (mounted) {
+        _resetPan();
         context.read<CameraProvider>().dismissExplanation();
         context.read<ExplanationProvider>().reset();
       }
@@ -328,6 +381,8 @@ class _CameraScreenState extends State<CameraScreen>
     _idleTimer?.cancel();
     _accelSub?.cancel();
     _controller?.dispose();
+    _panAnimController?.dispose();
+    _transformController.dispose();
     _appleOcrService.dispose();
     _googleOcrService.dispose();
     super.dispose();
@@ -362,6 +417,7 @@ class _CameraScreenState extends State<CameraScreen>
               if (cameraProvider.isCaptured)
                 Positioned.fill(
                   child: InteractiveViewer(
+                    transformationController: _transformController,
                     minScale: 1.0,
                     maxScale: 5.0,
                     child: Stack(
@@ -378,7 +434,7 @@ class _CameraScreenState extends State<CameraScreen>
                           imageHeight: cameraProvider.imageHeight,
                           rotationDegrees: 0,
                           imagePath: cameraProvider.capturedImagePath,
-                          onSelectionComplete: _onTextSelected,
+                          onSelectionComplete: (text, block, y) => _onTextSelected(text, block, y),
                         ),
                       ],
                     ),

@@ -15,7 +15,9 @@ class TextOverlay extends StatefulWidget {
   final int imageHeight;
   final int rotationDegrees;
   final String? imagePath;
-  final void Function(String selectedText, String blockText) onSelectionComplete;
+  /// Called when the user finishes selecting text.
+  /// [selectionNormalizedY] is the selection center's Y position (0–1) relative to the overlay.
+  final void Function(String selectedText, String blockText, double selectionNormalizedY) onSelectionComplete;
 
   const TextOverlay({
     super.key,
@@ -219,8 +221,24 @@ class _TextOverlayState extends State<TextOverlay> {
     }
     final blockText =
         involvedBlockIndices.toList().map((bi) => widget.blocks[bi].text).join(' ');
+
+    // Compute the average Y of selected elements in image coordinates,
+    // then normalize to 0–1 relative to image height.
+    double avgY = 0;
+    int count = 0;
+    for (final g in sorted) {
+      final loc = _fromGlobal(g);
+      final bbox = widget.blocks[loc.blockIdx].elements[loc.elemIdx].boundingBox;
+      if (bbox != null) {
+        avgY += bbox.center.dy;
+        count++;
+      }
+    }
+    final imgH = widget.imageHeight.toDouble();
+    final normalizedY = (count > 0 && imgH > 0) ? (avgY / count / imgH) : 0.0;
+
     setState(() => _finalSelectedGlobal = Set.of(globalIndices));
-    widget.onSelectionComplete(selectedText, blockText);
+    widget.onSelectionComplete(selectedText, blockText, normalizedY);
   }
 
   void _finalizeDragSelection() {
