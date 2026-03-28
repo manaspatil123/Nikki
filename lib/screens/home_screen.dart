@@ -38,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return PageView(
       controller: _pageController,
       children: [
-        const CameraScreen(),
+        CameraScreen(onBack: () => _animateTo(1)),
         ReadListScreen(
           onCamera: () => _animateTo(0),
           onSettings: () => _animateTo(2),

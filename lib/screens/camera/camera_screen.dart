@@ -26,7 +26,9 @@ import 'package:nikki/screens/camera/widgets/camera_bottom_bar.dart';
 import 'package:nikki/screens/camera/widgets/new_novel_dialog.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final VoidCallback? onBack;
+
+  const CameraScreen({super.key, this.onBack});
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -220,10 +222,15 @@ class _CameraScreenState extends State<CameraScreen>
 
       final OcrResult result;
       if (settings.useGoogleOcr) {
+        // Ensure the API key is loaded (async load may not be done on first capture).
+        var apiKey = settings.googleCloudApiKey;
+        if (apiKey.isEmpty) {
+          apiKey = await settings.ensureGoogleCloudApiKey();
+        }
         result = await _googleOcrService.processImageFile(
           xFile.path,
           cameraProvider.sourceLanguage,
-          settings.googleCloudApiKey,
+          apiKey,
         );
       } else {
         result = await _appleOcrService.processImageFile(
@@ -444,16 +451,10 @@ class _CameraScreenState extends State<CameraScreen>
               // Top bar
               CameraTopBar(
                 sourceLanguage: cameraProvider.sourceLanguage,
-                novels: cameraProvider.novels,
                 selectedNovel: cameraProvider.selectedNovel,
                 onLanguageChanged: (lang) =>
                     cameraProvider.setSourceLanguage(lang),
-                onNovelSelected: (novel) =>
-                    cameraProvider.selectNovel(novel),
-                onNewNovel: () => showNewNovelDialog(context),
-                onArrowTap: () {
-                  // TODO: action for arrow button
-                },
+                onArrowTap: widget.onBack ?? () => Navigator.pop(context),
               ),
 
               // Bottom bar

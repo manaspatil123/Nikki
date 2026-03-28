@@ -98,6 +98,14 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Fetch the Google Cloud API key directly from storage.
+  /// Used when the provider hasn't finished loading yet.
+  Future<String> ensureGoogleCloudApiKey() async {
+    if (googleCloudApiKey.isNotEmpty) return googleCloudApiKey;
+    googleCloudApiKey = await _settingsRepository.getGoogleCloudApiKey();
+    return googleCloudApiKey;
+  }
+
   Future<void> toggleUseGoogleOcr() async {
     useGoogleOcr = !useGoogleOcr;
     notifyListeners();

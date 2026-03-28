@@ -6,12 +6,45 @@ import 'package:nikki/core/constants/assets.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/models/novel.dart';
 import 'package:nikki/providers/camera_provider.dart';
+import 'package:nikki/screens/read_list/add_novel_dialog.dart';
 
 class ReadListScreen extends StatelessWidget {
   final VoidCallback? onCamera;
   final VoidCallback? onSettings;
 
   const ReadListScreen({super.key, this.onCamera, this.onSettings});
+
+  void _showEditNovelDialog(BuildContext context, Novel novel) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) => AddNovelDialog(
+        editNovel: novel,
+        onCreate: (_, __, ___) async {},
+        onUpdate: (updated) async {
+          final cameraProvider = context.read<CameraProvider>();
+          await cameraProvider.updateNovel(updated);
+        },
+        onDelete: () async {
+          final cameraProvider = context.read<CameraProvider>();
+          await cameraProvider.deleteNovel(novel.id!);
+        },
+      ),
+    );
+  }
+
+  void _showAddNovelDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) => AddNovelDialog(
+        onCreate: (name, language, description) async {
+          final cameraProvider = context.read<CameraProvider>();
+          await cameraProvider.createNovelFull(name, language, description);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +76,14 @@ class ReadListScreen extends StatelessWidget {
                           children: [
                             // Camera icon — left (just icon, no circle)
                             GestureDetector(
-                              onTap: onCamera ?? () => Navigator.pushNamed(context, '/camera'),
+                              onTap: () {
+                                context.read<CameraProvider>().deselectNovel();
+                                if (onCamera != null) {
+                                  onCamera!();
+                                } else {
+                                  Navigator.pushNamed(context, '/camera');
+                                }
+                              },
                               child: SvgPicture.asset(
                                 Assets.coloredCaptureIcon,
                                 width: 40,
@@ -108,7 +148,20 @@ class ReadListScreen extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: 100),
                           itemCount: novels.length,
                           itemBuilder: (context, index) {
-                            return _NovelCard(novel: novels[index]);
+                            final novel = novels[index];
+                            return _NovelCard(
+                              novel: novel,
+                              onEdit: () => _showEditNovelDialog(context, novel),
+                              onRead: () {
+                                final cp = context.read<CameraProvider>();
+                                cp.selectNovel(novel);
+                                if (onCamera != null) {
+                                  onCamera!();
+                                } else {
+                                  Navigator.pushNamed(context, '/camera');
+                                }
+                              },
+                            );
                           },
                         ),
                 ),
@@ -124,9 +177,7 @@ class ReadListScreen extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 20),
                   child: GestureDetector(
-                    onTap: () {
-                      // TODO: add new novel flow
-                    },
+                    onTap: () => _showAddNovelDialog(context),
                     child: Container(
                       width: 70,
                       height: 70,
@@ -158,8 +209,10 @@ class ReadListScreen extends StatelessWidget {
 
 class _NovelCard extends StatelessWidget {
   final Novel novel;
+  final VoidCallback? onEdit;
+  final VoidCallback? onRead;
 
-  const _NovelCard({required this.novel});
+  const _NovelCard({required this.novel, this.onEdit, this.onRead});
 
   @override
   Widget build(BuildContext context) {
@@ -171,16 +224,15 @@ class _NovelCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
+            // Top row: title + edit button
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
                     novel.name,
                     style: const TextStyle(
                       fontSize: 18,
@@ -188,70 +240,84 @@ class _NovelCard extends StatelessWidget {
                       color: Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  // Author
-                  if (novel.author.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        novel.author,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: CameraColors.brown,
-                        ),
-                      ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onEdit,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: CameraColors.brown, width: 1.5),
                     ),
-                  // Language
-                  Text(
-                    '${novel.sourceLanguage} → ${novel.targetLanguage}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: CameraColors.teal,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Created date
-                  Text(
-                    'Created on ${_formatDate(novel.createdAt)}',
-                    style: const TextStyle(
-                      fontSize: 12,
+                    child: const Icon(
+                      Icons.edit_outlined,
                       color: CameraColors.brown,
+                      size: 15,
                     ),
                   ),
-                  // Description
-                  if (novel.description.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      novel.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ],
+                ),
+              ],
+            ),
+
+            // Description
+            if (novel.description.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                novel.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 8),
+
+            // Language
+            Text(
+              '${novel.sourceLanguage} → ${novel.targetLanguage}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: CameraColors.teal,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 12),
-            // Circle button
-            GestureDetector(
-              onTap: () {
-                // TODO: novel action
-              },
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: CameraColors.brown, width: 1.5),
-                ),
-                child: const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: CameraColors.brown,
-                  size: 14,
+            const SizedBox(height: 4),
+
+            // Created date
+            Text(
+              'Created on ${_formatDate(novel.createdAt)}',
+              style: const TextStyle(
+                fontSize: 12,
+                color: CameraColors.brown,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Bottom row: Read button right-aligned
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: onRead,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: CameraColors.teal,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Read',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ),

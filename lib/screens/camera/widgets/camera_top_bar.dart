@@ -1,27 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:nikki/core/constants/assets.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/models/novel.dart';
 import 'package:nikki/screens/camera/widgets/language_dropdown.dart';
-import 'package:nikki/screens/camera/widgets/novel_selector.dart';
 
 class CameraTopBar extends StatelessWidget {
   final String sourceLanguage;
-  final List<Novel> novels;
   final Novel? selectedNovel;
   final ValueChanged<String> onLanguageChanged;
-  final ValueChanged<Novel> onNovelSelected;
-  final VoidCallback onNewNovel;
   final VoidCallback onArrowTap;
 
   const CameraTopBar({
     super.key,
     required this.sourceLanguage,
-    required this.novels,
     required this.selectedNovel,
     required this.onLanguageChanged,
-    required this.onNovelSelected,
-    required this.onNewNovel,
     required this.onArrowTap,
   });
 
@@ -35,12 +30,10 @@ class CameraTopBar extends StatelessWidget {
         value: SystemUiOverlayStyle.dark,
         child: Column(
           children: [
-            // Status bar area
             Container(
               height: MediaQuery.of(context).padding.top,
               color: CameraColors.linen,
             ),
-            // Toolbar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: CameraColors.linen,
@@ -51,26 +44,29 @@ class CameraTopBar extends StatelessWidget {
                     sourceLanguage: sourceLanguage,
                     onLanguageChanged: onLanguageChanged,
                   ),
-                  NovelSelector(
-                    novels: novels,
-                    selectedNovel: selectedNovel,
-                    onNovelSelected: onNovelSelected,
-                    onNewNovel: onNewNovel,
+                  // Novel name (or empty)
+                  Expanded(
+                    child: Text(
+                      selectedNovel?.name ?? '',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: selectedNovel != null ? Colors.black87 : Colors.transparent,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  // Arrow button
+                  // Back to read list
                   GestureDetector(
                     onTap: onArrowTap,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black26),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: Colors.black54,
-                        size: 16,
+                    child: SvgPicture.asset(
+                      Assets.rightArrow,
+                      width: 20,
+                      height: 20,
+                      colorFilter: const ColorFilter.mode(
+                        CameraColors.darkTeal,
+                        BlendMode.srcIn,
                       ),
                     ),
                   ),

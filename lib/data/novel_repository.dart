@@ -15,10 +15,11 @@ class NovelRepository {
     return Novel.fromMap(maps.first);
   }
 
-  Future<int> insert(String name, String sourceLang, String targetLang) async {
+  Future<int> insert(String name, String sourceLang, String targetLang, {String description = ''}) async {
     final db = await NikkiDatabase.database;
     return db.insert('novels', Novel(
       name: name,
+      description: description,
       sourceLanguage: sourceLang,
       targetLanguage: targetLang,
       createdAt: DateTime.now().millisecondsSinceEpoch,

@@ -59,6 +59,11 @@ class CameraProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void deselectNovel() {
+    selectedNovel = null;
+    notifyListeners();
+  }
+
   Future<void> createNovel(String name) async {
     try {
       final id = await _novelRepository.insert(name, sourceLanguage, targetLanguage);
@@ -70,6 +75,45 @@ class CameraProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('CameraProvider.createNovel error: $e');
+    }
+  }
+
+  Future<void> createNovelFull(String name, String language, String description) async {
+    try {
+      final id = await _novelRepository.insert(name, language, targetLanguage, description: description);
+      await loadNovels();
+      final novel = novels.where((n) => n.id == id).firstOrNull;
+      if (novel != null) {
+        selectedNovel = novel;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('CameraProvider.createNovelFull error: $e');
+    }
+  }
+
+  Future<void> updateNovel(Novel novel) async {
+    try {
+      await _novelRepository.update(novel);
+      await loadNovels();
+      if (selectedNovel?.id == novel.id) {
+        selectedNovel = novels.where((n) => n.id == novel.id).firstOrNull;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('CameraProvider.updateNovel error: $e');
+    }
+  }
+
+  Future<void> deleteNovel(int id) async {
+    try {
+      await _novelRepository.delete(id);
+      if (selectedNovel?.id == id) {
+        selectedNovel = null;
+      }
+      await loadNovels();
+    } catch (e) {
+      debugPrint('CameraProvider.deleteNovel error: $e');
     }
   }
 
