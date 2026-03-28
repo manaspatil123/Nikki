@@ -6,16 +6,18 @@ import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/widgets/shimmer_box.dart';
 
-enum ExplanationSheetMode { camera, history }
+enum ExplanationSheetMode { camera, history, novelDetail }
 
 class ExplanationSheet extends StatelessWidget {
   final ExplanationSheetMode mode;
   final VoidCallback? onRemove;
+  final Widget? notesWidget;
 
   const ExplanationSheet({
     super.key,
     this.mode = ExplanationSheetMode.camera,
     this.onRemove,
+    this.notesWidget,
   });
 
   @override
@@ -44,6 +46,7 @@ class ExplanationSheet extends StatelessWidget {
       explanation: explanation,
       mode: mode,
       onRemove: onRemove,
+      notesWidget: notesWidget,
     );
   }
 }
@@ -144,12 +147,14 @@ class _ExplanationBody extends StatefulWidget {
   final Explanation explanation;
   final ExplanationSheetMode mode;
   final VoidCallback? onRemove;
+  final Widget? notesWidget;
 
   const _ExplanationBody({
     required this.selectedText,
     required this.explanation,
     required this.mode,
     this.onRemove,
+    this.notesWidget,
   });
 
   @override
@@ -164,45 +169,69 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
   static const _fontFamily = 'Georgia';
 
   double _fontSize = _defaultFontSize;
+  final ScrollController _scrollController = ScrollController();
+  double _lastKeyboardHeight = 0;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isHistory = widget.mode == ExplanationSheetMode.history;
+    final isNovelDetail = widget.mode == ExplanationSheetMode.novelDetail;
+    final hideSimWords = isHistory || isNovelDetail;
     final titleSize = _fontSize + 10;
     final readingSize = _fontSize + 1;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Top row: zoom controls + save/add button
-        Padding(
-          padding: const EdgeInsets.only(left: 16, right: 20, top: 10),
-          child: Row(
-            children: [
-              // Font size controls
-              _FontSizeControls(
-                onDecrease: _fontSize > _minFontSize
-                    ? () => setState(() => _fontSize = (_fontSize - _fontStep).clamp(_minFontSize, _maxFontSize))
-                    : null,
-                onIncrease: _fontSize < _maxFontSize
-                    ? () => setState(() => _fontSize = (_fontSize + _fontStep).clamp(_minFontSize, _maxFontSize))
-                    : null,
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    // Auto-scroll to bottom when keyboard opens (so notes are visible).
+    if (keyboardHeight > 0 && _lastKeyboardHeight == 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
+    _lastKeyboardHeight = keyboardHeight;
+
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        padding: EdgeInsets.fromLTRB(20, 10, 20, 20 + keyboardHeight),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: zoom controls + save/add button
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  _FontSizeControls(
+                    onDecrease: _fontSize > _minFontSize
+                        ? () => setState(() => _fontSize = (_fontSize - _fontStep).clamp(_minFontSize, _maxFontSize))
+                        : null,
+                    onIncrease: _fontSize < _maxFontSize
+                        ? () => setState(() => _fontSize = (_fontSize + _fontStep).clamp(_minFontSize, _maxFontSize))
+                        : null,
+                  ),
+                  const Spacer(),
+                  if (isHistory)
+                    const _AddToNovelButton()
+                  else if (!isNovelDetail)
+                    const _SaveButton(),
+                ],
               ),
-              const Spacer(),
-              if (isHistory)
-                const _AddToNovelButton()
-              else
-                const _SaveButton(),
-            ],
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+            ),
+            Text(
                   widget.selectedText,
                   style: TextStyle(
                     fontSize: titleSize,
@@ -244,21 +273,21 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
                           .toList(),
                     ),
                   ),
-                if (!isHistory && widget.explanation.similarWords != null && widget.explanation.similarWords!.isNotEmpty)
+                if (!hideSimWords && widget.explanation.similarWords != null && widget.explanation.similarWords!.isNotEmpty)
                   _SimilarWordsSection(
                     selectedText: widget.selectedText,
                     similarWords: widget.explanation.similarWords!,
                   ),
-                if (isHistory) ...[
+                if (widget.notesWidget != null)
+                  widget.notesWidget!,
+                if (isHistory || isNovelDetail) ...[
                   const SizedBox(height: 24),
                   Center(child: _RemoveButton(onRemove: widget.onRemove)),
                 ],
                 const SizedBox(height: 20),
-              ],
-            ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

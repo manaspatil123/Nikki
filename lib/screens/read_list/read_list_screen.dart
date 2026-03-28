@@ -7,6 +7,7 @@ import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/models/novel.dart';
 import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/screens/read_list/add_novel_dialog.dart';
+import 'package:nikki/screens/novel_detail/novel_detail_screen.dart';
 
 class ReadListScreen extends StatelessWidget {
   final VoidCallback? onCamera;
@@ -151,6 +152,10 @@ class ReadListScreen extends StatelessWidget {
                             final novel = novels[index];
                             return _NovelCard(
                               novel: novel,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => NovelDetailScreen(novel: novel)),
+                              ),
                               onEdit: () => _showEditNovelDialog(context, novel),
                               onRead: () {
                                 final cp = context.read<CameraProvider>();
@@ -209,14 +214,17 @@ class ReadListScreen extends StatelessWidget {
 
 class _NovelCard extends StatelessWidget {
   final Novel novel;
+  final VoidCallback? onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onRead;
 
-  const _NovelCard({required this.novel, this.onEdit, this.onRead});
+  const _NovelCard({required this.novel, this.onTap, this.onEdit, this.onRead});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -324,6 +332,7 @@ class _NovelCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

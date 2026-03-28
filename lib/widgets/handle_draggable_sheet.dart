@@ -81,9 +81,15 @@ class _HandleDraggableSheetState extends State<HandleDraggableSheet>
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    // When keyboard is open, expand to max so notes stay visible.
+    final effectiveHeight = keyboardHeight > 0
+        ? screenHeight * widget.maxFraction
+        : screenHeight * _fraction;
 
     return SizedBox(
-      height: screenHeight * _fraction,
+      height: effectiveHeight,
       child: Column(
         children: [
           // Handle bar — drag target

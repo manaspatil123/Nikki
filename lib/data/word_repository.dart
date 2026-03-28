@@ -49,6 +49,11 @@ class WordRepository {
     return db.insert('word_entries', entry.toMap());
   }
 
+  Future<void> updateNotes(int id, String notes) async {
+    final db = await NikkiDatabase.database;
+    await db.update('word_entries', {'notes': notes}, where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> delete(int id) async {
     final db = await NikkiDatabase.database;
     await db.delete('word_entries', where: 'id = ?', whereArgs: [id]);

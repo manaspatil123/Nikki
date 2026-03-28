@@ -168,7 +168,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       backgroundColor: CameraColors.linen,
       builder: (context) => HandleDraggableSheet(
-        initialFraction: 0.6,
+        initialFraction: 0.9,
         maxFraction: 0.9,
         child: ExplanationSheet(
           mode: ExplanationSheetMode.history,
