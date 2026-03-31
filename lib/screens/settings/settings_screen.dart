@@ -4,6 +4,7 @@ import 'package:nikki/core/constants/languages.dart';
 import 'package:nikki/models/explanation_category.dart';
 import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/providers/history_provider.dart';
+import 'package:nikki/services/backup_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   final VoidCallback? onBack;
@@ -121,11 +122,29 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   _SectionHeader('DATA'),
                   _ActionRow(
-                    label: 'Export History',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Coming soon')),
-                      );
+                    label: 'Export Data',
+                    onTap: () async {
+                      try {
+                        await BackupService.export();
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Export failed: $e')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  _buildDivider(theme),
+                  _ActionRow(
+                    label: 'Import Data',
+                    onTap: () async {
+                      final msg = await BackupService.import();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(msg)),
+                        );
+                      }
                     },
                   ),
                   _buildDivider(theme),

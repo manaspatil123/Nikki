@@ -53,10 +53,28 @@ class HistoryProvider extends ChangeNotifier {
 
   Future<void> deleteWord(int id) async {
     try {
-      await _wordRepository.delete(id);
+      await _wordRepository.hideFromHistory(id);
       await loadEntries();
     } catch (e) {
       debugPrint('HistoryProvider.deleteWord error: $e');
+    }
+  }
+
+  Future<void> deleteMultiple(List<int> ids) async {
+    try {
+      await _wordRepository.hideMultipleFromHistory(ids);
+      await loadEntries();
+    } catch (e) {
+      debugPrint('HistoryProvider.deleteMultiple error: $e');
+    }
+  }
+
+  Future<void> assignToNovel(List<int> ids, int novelId) async {
+    try {
+      await _wordRepository.assignToNovel(ids, novelId);
+      await loadEntries();
+    } catch (e) {
+      debugPrint('HistoryProvider.assignToNovel error: $e');
     }
   }
 

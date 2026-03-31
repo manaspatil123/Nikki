@@ -11,12 +11,14 @@ enum ExplanationSheetMode { camera, history, novelDetail }
 class ExplanationSheet extends StatelessWidget {
   final ExplanationSheetMode mode;
   final VoidCallback? onRemove;
+  final VoidCallback? onAddToNovel;
   final Widget? notesWidget;
 
   const ExplanationSheet({
     super.key,
     this.mode = ExplanationSheetMode.camera,
     this.onRemove,
+    this.onAddToNovel,
     this.notesWidget,
   });
 
@@ -46,6 +48,7 @@ class ExplanationSheet extends StatelessWidget {
       explanation: explanation,
       mode: mode,
       onRemove: onRemove,
+      onAddToNovel: onAddToNovel,
       notesWidget: notesWidget,
     );
   }
@@ -82,14 +85,14 @@ class _SaveButton extends StatelessWidget {
 }
 
 class _AddToNovelButton extends StatelessWidget {
-  const _AddToNovelButton();
+  final VoidCallback? onTap;
+
+  const _AddToNovelButton({this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // TODO: add to novel
-      },
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
@@ -147,6 +150,7 @@ class _ExplanationBody extends StatefulWidget {
   final Explanation explanation;
   final ExplanationSheetMode mode;
   final VoidCallback? onRemove;
+  final VoidCallback? onAddToNovel;
   final Widget? notesWidget;
 
   const _ExplanationBody({
@@ -154,6 +158,7 @@ class _ExplanationBody extends StatefulWidget {
     required this.explanation,
     required this.mode,
     this.onRemove,
+    this.onAddToNovel,
     this.notesWidget,
   });
 
@@ -225,7 +230,7 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
                   ),
                   const Spacer(),
                   if (isHistory)
-                    const _AddToNovelButton()
+                    _AddToNovelButton(onTap: widget.onAddToNovel)
                   else if (!isNovelDetail)
                     const _SaveButton(),
                 ],

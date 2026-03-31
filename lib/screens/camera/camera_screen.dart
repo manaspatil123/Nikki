@@ -220,17 +220,15 @@ class _CameraScreenState extends State<CameraScreen>
       final cameraProvider = context.read<CameraProvider>();
       final settings = context.read<SettingsProvider>();
 
+      // Ensure settings are fully loaded before deciding OCR engine.
+      await settings.ensureLoaded();
+
       final OcrResult result;
       if (settings.useGoogleOcr) {
-        // Ensure the API key is loaded (async load may not be done on first capture).
-        var apiKey = settings.googleCloudApiKey;
-        if (apiKey.isEmpty) {
-          apiKey = await settings.ensureGoogleCloudApiKey();
-        }
         result = await _googleOcrService.processImageFile(
           xFile.path,
           cameraProvider.sourceLanguage,
-          apiKey,
+          settings.googleCloudApiKey,
         );
       } else {
         result = await _appleOcrService.processImageFile(

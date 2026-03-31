@@ -6,6 +6,7 @@ class WordEntry {
   final String explanationJson;
   final int createdAt;
   final String notes;
+  final bool hiddenFromHistory;
 
   WordEntry({
     this.id,
@@ -15,6 +16,7 @@ class WordEntry {
     required this.explanationJson,
     required this.createdAt,
     this.notes = '',
+    this.hiddenFromHistory = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -25,6 +27,7 @@ class WordEntry {
     'explanationJson': explanationJson,
     'createdAt': createdAt,
     'notes': notes,
+    'hiddenFromHistory': hiddenFromHistory ? 1 : 0,
   };
 
   factory WordEntry.fromMap(Map<String, dynamic> map) => WordEntry(
@@ -35,5 +38,6 @@ class WordEntry {
     explanationJson: map['explanationJson'] as String,
     createdAt: map['createdAt'] as int,
     notes: map['notes'] as String? ?? '',
+    hiddenFromHistory: (map['hiddenFromHistory'] as int? ?? 0) == 1,
   );
 }

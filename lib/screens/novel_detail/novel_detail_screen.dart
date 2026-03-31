@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/data/word_repository.dart';
+import 'package:nikki/widgets/date_section_header.dart';
 import 'package:nikki/models/novel.dart';
 import 'package:nikki/models/word_entry.dart';
 import 'package:nikki/widgets/explanation_sheet.dart';
@@ -21,7 +22,9 @@ class NovelDetailScreen extends StatefulWidget {
 
 class _NovelDetailScreenState extends State<NovelDetailScreen> {
   final WordRepository _wordRepo = WordRepository();
+  final TextEditingController _searchController = TextEditingController();
   List<WordEntry> _entries = [];
+  String _searchQuery = '';
   bool _isLoading = true;
 
   @override
@@ -30,10 +33,25 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     _loadEntries();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadEntries() async {
     setState(() => _isLoading = true);
-    _entries = await _wordRepo.getEntriesByNovel(widget.novel.id!);
+    if (_searchQuery.isNotEmpty) {
+      _entries = await _wordRepo.searchEntries(widget.novel.id!, _searchQuery);
+    } else {
+      _entries = await _wordRepo.getEntriesByNovel(widget.novel.id!);
+    }
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _onSearchChanged(String query) {
+    _searchQuery = query;
+    _loadEntries();
   }
 
   void _showWordSheet(WordEntry entry) {
@@ -69,7 +87,9 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
       backgroundColor: CameraColors.linen,
       body: SafeArea(
         child: Column(
@@ -105,6 +125,39 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
 
             const SizedBox(height: 12),
 
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                style: const TextStyle(color: Colors.black, fontSize: 15),
+                cursorColor: CameraColors.teal,
+                decoration: InputDecoration(
+                  hintText: 'Search words...',
+                  hintStyle: const TextStyle(color: CameraColors.brown),
+                  prefixIcon: const Icon(Icons.search, color: CameraColors.brown),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: CameraColors.caramel),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: CameraColors.teal, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.only(left: 0, right: 12, top: 12, bottom: 12),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             // "Words Learnt" heading
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
@@ -137,9 +190,19 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                           itemCount: _entries.length,
                           itemBuilder: (context, index) {
                             final entry = _entries[index];
-                            return _WordItem(
-                              entry: entry,
-                              onTap: () => _showWordSheet(entry),
+                            final showDateHeader = index == 0 ||
+                                !DateSectionHeader.sameDay(
+                                    _entries[index - 1].createdAt, entry.createdAt);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (showDateHeader)
+                                  DateSectionHeader(timestamp: entry.createdAt),
+                                _WordItem(
+                                  entry: entry,
+                                  onTap: () => _showWordSheet(entry),
+                                ),
+                              ],
                             );
                           },
                         ),
@@ -147,6 +210,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

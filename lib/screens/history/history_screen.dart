@@ -2,10 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:nikki/models/novel.dart';
 import 'package:nikki/models/word_entry.dart';
+import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/providers/history_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/widgets/date_section_header.dart';
 import 'package:nikki/widgets/explanation_sheet.dart';
 import 'package:nikki/widgets/handle_draggable_sheet.dart';
 
@@ -18,11 +21,12 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final TextEditingController _searchController = TextEditingController();
+  bool _selectMode = false;
+  final Set<int> _selectedIds = {};
 
   @override
   void initState() {
     super.initState();
-    // Refresh entries when screen opens (picks up newly saved words)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HistoryProvider>().loadEntries();
     });
@@ -34,6 +38,64 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
+  void _enterSelectMode() {
+    setState(() {
+      _selectMode = true;
+      _selectedIds.clear();
+    });
+  }
+
+  void _exitSelectMode() {
+    setState(() {
+      _selectMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  // _showActions is now handled by PopupMenuButton in the build method.
+
+  void _showAddToNovelDialogForEntry(WordEntry entry) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => _AddToNovelDialog(
+        onSave: (novelId) {
+          context.read<HistoryProvider>().assignToNovel([entry.id!], novelId);
+        },
+      ),
+    );
+  }
+
+  void _deleteSelected() {
+    if (_selectedIds.isEmpty) return;
+    context.read<HistoryProvider>().deleteMultiple(_selectedIds.toList());
+    _exitSelectMode();
+  }
+
+  void _showAddToNovelDialog() {
+    if (_selectedIds.isEmpty) return;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => _AddToNovelDialog(
+        onSave: (novelId) {
+          context.read<HistoryProvider>().assignToNovel(_selectedIds.toList(), novelId);
+          _exitSelectMode();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final historyProvider = context.watch<HistoryProvider>();
@@ -41,96 +103,155 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-      backgroundColor: CameraColors.linen,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: CameraColors.brown),
-                    onPressed: () => Navigator.pop(context),
+        backgroundColor: CameraColors.linen,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Top bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: CameraColors.brown),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'History',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    // Select / action buttons
+                    if (_selectMode) ...[
+                      PopupMenuButton<String>(
+                        enabled: _selectedIds.isNotEmpty,
+                        color: Colors.white,
+                        offset: const Offset(0, 40),
+                        constraints: const BoxConstraints(minWidth: 180),
+                        onSelected: (value) {
+                          if (value == 'add_to_novel') {
+                            _showAddToNovelDialog();
+                          } else if (value == 'delete') {
+                            _deleteSelected();
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          const PopupMenuItem(
+                            value: 'add_to_novel',
+                            child: Text('Add to novel', style: TextStyle(fontSize: 14, color: CameraColors.darkTeal, fontWeight: FontWeight.w500)),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete', style: TextStyle(fontSize: 14, color: CameraColors.dangerBorder, fontWeight: FontWeight.w500)),
+                          ),
+                        ],
+                        child: Icon(
+                          Icons.more_horiz,
+                          color: _selectedIds.isNotEmpty ? CameraColors.brown : CameraColors.brown.withOpacity(0.3),
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: _exitSelectMode,
+                        child: const Icon(Icons.close, color: CameraColors.brown, size: 24),
+                      ),
+                    ] else
+                      GestureDetector(
+                        onTap: historyProvider.entries.isNotEmpty ? _enterSelectMode : null,
+                        child: Text(
+                          'Select',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: historyProvider.entries.isNotEmpty
+                                ? CameraColors.teal
+                                : CameraColors.teal.withOpacity(0.3),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // Subtitle
+              const Padding(
+                padding: EdgeInsets.only(left: 60, bottom: 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'History is automatically cleared after 30 days',
+                    style: TextStyle(fontSize: 12, color: CameraColors.brown),
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'History',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                ),
+              ),
+
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (query) => historyProvider.updateSearchQuery(query),
+                  style: const TextStyle(color: Colors.black, fontSize: 15),
+                  cursorColor: CameraColors.teal,
+                  decoration: InputDecoration(
+                    hintText: 'Search words...',
+                    hintStyle: const TextStyle(color: CameraColors.brown),
+                    prefixIcon: const Icon(Icons.search, color: CameraColors.brown),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: CameraColors.caramel),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: CameraColors.teal, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.only(left: 0, right: 12, top: 12, bottom: 12),
+                  ),
+                ),
+              ),
+
+              // Selection count
+              if (_selectMode && _selectedIds.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 24, top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${_selectedIds.length} selected',
+                      style: const TextStyle(fontSize: 13, color: CameraColors.teal, fontWeight: FontWeight.w600),
                     ),
                   ),
-                ],
-              ),
-            ),
-
-            // Subtitle
-            const Padding(
-              padding: EdgeInsets.only(left: 60, bottom: 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'History is automatically cleared after 30 days',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: CameraColors.brown,
-                  ),
                 ),
+
+              const SizedBox(height: 8),
+
+              // Word list
+              Expanded(
+                child: _buildWordList(context, historyProvider),
               ),
-            ),
-
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (query) => historyProvider.updateSearchQuery(query),
-                style: const TextStyle(color: Colors.black, fontSize: 15),
-                cursorColor: CameraColors.teal,
-                decoration: InputDecoration(
-                  hintText: 'Search words...',
-                  hintStyle: const TextStyle(color: CameraColors.brown),
-                  prefixIcon: const Icon(Icons.search, color: CameraColors.brown),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: CameraColors.caramel),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: CameraColors.teal, width: 1.5),
-                  ),
-                  contentPadding: const EdgeInsets.only(left: 0, right: 12, top: 12, bottom: 12),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Word list
-            Expanded(
-              child: _buildWordList(context, historyProvider),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
   Widget _buildWordList(BuildContext context, HistoryProvider provider) {
     if (provider.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: CameraColors.teal),
-      );
+      return const Center(child: CircularProgressIndicator(color: CameraColors.teal));
     }
 
     if (provider.entries.isEmpty) {
@@ -142,14 +263,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
     }
 
+    final entries = provider.entries;
+
     return ListView.builder(
-      itemCount: provider.entries.length,
+      itemCount: entries.length,
       itemBuilder: (context, index) {
-        final entry = provider.entries[index];
-        return _WordListItem(
-          entry: entry,
-          onTap: () => _showExplanationSheet(context, entry),
-          onDelete: () => provider.deleteWord(entry.id!),
+        final entry = entries[index];
+        final isSelected = _selectedIds.contains(entry.id);
+        final showDateHeader = index == 0 ||
+            !DateSectionHeader.sameDay(entries[index - 1].createdAt, entry.createdAt);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showDateHeader) DateSectionHeader(timestamp: entry.createdAt),
+            _WordListItem(
+              entry: entry,
+              selectMode: _selectMode,
+              isSelected: isSelected,
+              onTap: _selectMode
+                  ? () => _toggleSelection(entry.id!)
+                  : () => _showExplanationSheet(context, entry),
+              onDelete: () => provider.deleteWord(entry.id!),
+              onAddToNovel: () => _showAddToNovelDialogForEntry(entry),
+            ),
+          ],
         );
       },
     );
@@ -167,7 +305,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       backgroundColor: CameraColors.linen,
-      builder: (context) => HandleDraggableSheet(
+      builder: (sheetCtx) => HandleDraggableSheet(
         initialFraction: 0.9,
         maxFraction: 0.9,
         child: ExplanationSheet(
@@ -175,21 +313,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
           onRemove: () {
             this.context.read<HistoryProvider>().deleteWord(entry.id!);
           },
+          onAddToNovel: () {
+            Navigator.pop(sheetCtx);
+            _showAddToNovelDialogForEntry(entry);
+          },
         ),
       ),
     );
   }
 }
 
+// ── Word list item with selection support ──
+
 class _WordListItem extends StatefulWidget {
   final WordEntry entry;
+  final bool selectMode;
+  final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback? onAddToNovel;
 
   const _WordListItem({
     required this.entry,
+    required this.selectMode,
+    required this.isSelected,
     required this.onTap,
     required this.onDelete,
+    this.onAddToNovel,
   });
 
   @override
@@ -200,7 +350,7 @@ class _WordListItemState extends State<_WordListItem>
     with SingleTickerProviderStateMixin {
   static const _actionWidth = 56.0;
   static const _actionCount = 2;
-  static const _revealWidth = _actionWidth * _actionCount + 12; // + gaps
+  static const _revealWidth = _actionWidth * _actionCount + 12;
 
   late AnimationController _animController;
   double _dragOffset = 0;
@@ -218,18 +368,29 @@ class _WordListItemState extends State<_WordListItem>
   }
 
   @override
+  void didUpdateWidget(covariant _WordListItem old) {
+    super.didUpdateWidget(old);
+    // Close swipe actions when entering select mode.
+    if (widget.selectMode && !old.selectMode && _isOpen) {
+      _close();
+    }
+  }
+
+  @override
   void dispose() {
     _animController.dispose();
     super.dispose();
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (widget.selectMode) return;
     setState(() {
       _dragOffset = (_dragOffset + details.delta.dx).clamp(-_revealWidth, 0.0);
     });
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
+    if (widget.selectMode) return;
     final velocity = details.velocity.pixelsPerSecond.dx;
     if (velocity < -300 || _dragOffset < -_revealWidth / 2) {
       _animController.value = _dragOffset / -_revealWidth;
@@ -255,52 +416,57 @@ class _WordListItemState extends State<_WordListItem>
         height: 70,
         child: Stack(
           children: [
-            // Action buttons — behind the card
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Blue note button
-                  Container(
-                    width: _actionWidth,
-                    margin: const EdgeInsets.symmetric(vertical: 2),
-                    decoration: BoxDecoration(
-                      color: CameraColors.teal,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.edit_note, color: Colors.white, size: 26),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Red delete button
-                  GestureDetector(
-                    onTap: () {
-                      _close();
-                      widget.onDelete();
-                    },
-                    child: Container(
-                      width: _actionWidth,
-                      margin: const EdgeInsets.symmetric(vertical: 2),
-                      decoration: BoxDecoration(
-                        color: CameraColors.dangerBorder,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.delete_outline, color: Colors.white, size: 24),
+            // Swipe action buttons (hidden in select mode)
+            if (!widget.selectMode)
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        _close();
+                        widget.onAddToNovel?.call();
+                      },
+                      child: Container(
+                        width: _actionWidth,
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        decoration: BoxDecoration(
+                          color: CameraColors.teal,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.edit_note, color: Colors.white, size: 26),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () {
+                        _close();
+                        widget.onDelete();
+                      },
+                      child: Container(
+                        width: _actionWidth,
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        decoration: BoxDecoration(
+                          color: CameraColors.dangerBorder,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.delete_outline, color: Colors.white, size: 24),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            // Foreground card — slides left
+            // Foreground card
             Transform.translate(
-              offset: Offset(_dragOffset, 0),
+              offset: Offset(widget.selectMode ? 0 : _dragOffset, 0),
               child: GestureDetector(
                 onTap: _isOpen ? _close : widget.onTap,
                 onHorizontalDragUpdate: _onHorizontalDragUpdate,
@@ -313,6 +479,25 @@ class _WordListItemState extends State<_WordListItem>
                   ),
                   child: Row(
                     children: [
+                      // Tick checkbox (select mode only)
+                      if (widget.selectMode) ...[
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: widget.isSelected ? CameraColors.teal : Colors.transparent,
+                            border: Border.all(
+                              color: widget.isSelected ? CameraColors.teal : CameraColors.brown,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: widget.isSelected
+                              ? const Icon(Icons.check, size: 16, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,10 +527,7 @@ class _WordListItemState extends State<_WordListItem>
                       const SizedBox(width: 12),
                       Text(
                         _formatDate(widget.entry.createdAt),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: CameraColors.brown,
-                        ),
+                        style: const TextStyle(fontSize: 12, color: CameraColors.brown),
                       ),
                     ],
                   ),
@@ -371,5 +553,198 @@ class _WordListItemState extends State<_WordListItem>
     final date = DateTime.fromMillisecondsSinceEpoch(millis);
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}';
+  }
+}
+
+// ── Add to Novel Dialog ──
+
+class _AddToNovelDialog extends StatefulWidget {
+  final void Function(int novelId) onSave;
+
+  const _AddToNovelDialog({required this.onSave});
+
+  @override
+  State<_AddToNovelDialog> createState() => _AddToNovelDialogState();
+}
+
+class _AddToNovelDialogState extends State<_AddToNovelDialog> {
+  int? _selectedNovelId;
+
+  @override
+  Widget build(BuildContext context) {
+    final novels = context.watch<CameraProvider>().novels;
+
+    return Scaffold(
+      backgroundColor: Colors.black54,
+      resizeToAvoidBottomInset: false,
+      body: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 28, vertical: 80),
+          constraints: const BoxConstraints(maxHeight: 500),
+          decoration: BoxDecoration(
+            color: CameraColors.linen,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'I wish to save these words to...',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Georgia',
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: CameraColors.brown, width: 1.5),
+                        ),
+                        child: const Icon(Icons.close, size: 14, color: CameraColors.brown),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Novel list
+              Flexible(
+                child: novels.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'No novels created yet.',
+                          style: TextStyle(fontSize: 14, color: CameraColors.brown),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: novels.length,
+                        itemBuilder: (context, index) {
+                          final novel = novels[index];
+                          final isSelected = _selectedNovelId == novel.id;
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedNovelId = novel.id),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: isSelected
+                                    ? Border.all(color: CameraColors.teal, width: 1.5)
+                                    : null,
+                              ),
+                              child: Row(
+                                children: [
+                                  // Radio indicator
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isSelected ? CameraColors.teal : CameraColors.brown,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: isSelected
+                                        ? Center(
+                                            child: Container(
+                                              width: 10,
+                                              height: 10,
+                                              decoration: const BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: CameraColors.teal,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          novel.name,
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                        Text(
+                                          novel.sourceLanguage,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: CameraColors.brown,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+
+              // Save button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onTap: _selectedNovelId != null
+                        ? () {
+                            widget.onSave(_selectedNovelId!);
+                            Navigator.pop(context);
+                          }
+                        : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _selectedNovelId != null
+                            ? CameraColors.darkTeal
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Save',
+                          style: TextStyle(
+                            color: _selectedNovelId != null ? Colors.white : Colors.grey,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

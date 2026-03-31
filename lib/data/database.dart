@@ -14,7 +14,7 @@ class NikkiDatabase {
     final path = join(await getDatabasesPath(), 'nikki.db');
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE novels (
@@ -36,7 +36,8 @@ class NikkiDatabase {
             surroundingContext TEXT NOT NULL,
             explanationJson TEXT NOT NULL,
             createdAt INTEGER NOT NULL,
-            notes TEXT NOT NULL DEFAULT ''
+            notes TEXT NOT NULL DEFAULT '',
+            hiddenFromHistory INTEGER NOT NULL DEFAULT 0
           )
         ''');
         await db.execute('CREATE INDEX idx_word_entries_novel ON word_entries(novelId)');
@@ -64,6 +65,9 @@ class NikkiDatabase {
         }
         if (oldVersion < 4) {
           await db.execute("ALTER TABLE word_entries ADD COLUMN notes TEXT NOT NULL DEFAULT ''");
+        }
+        if (oldVersion < 5) {
+          await db.execute("ALTER TABLE word_entries ADD COLUMN hiddenFromHistory INTEGER NOT NULL DEFAULT 0");
         }
       },
     );

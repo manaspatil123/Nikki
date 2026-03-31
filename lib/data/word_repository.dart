@@ -6,6 +6,7 @@ class WordRepository {
     final db = await NikkiDatabase.database;
     final maps = await db.query(
       'word_entries',
+      where: 'hiddenFromHistory = 0',
       orderBy: 'createdAt DESC',
     );
     return maps.map((m) => WordEntry.fromMap(m)).toList();
@@ -15,7 +16,7 @@ class WordRepository {
     final db = await NikkiDatabase.database;
     final maps = await db.query(
       'word_entries',
-      where: 'selectedText LIKE ?',
+      where: 'hiddenFromHistory = 0 AND selectedText LIKE ?',
       whereArgs: ['%$query%'],
       orderBy: 'createdAt DESC',
     );
@@ -57,6 +58,37 @@ class WordRepository {
   Future<void> delete(int id) async {
     final db = await NikkiDatabase.database;
     await db.delete('word_entries', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> hideFromHistory(int id) async {
+    final db = await NikkiDatabase.database;
+    await db.update('word_entries', {'hiddenFromHistory': 1}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> hideMultipleFromHistory(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final db = await NikkiDatabase.database;
+    final placeholders = ids.map((_) => '?').join(',');
+    await db.update('word_entries', {'hiddenFromHistory': 1}, where: 'id IN ($placeholders)', whereArgs: ids);
+  }
+
+  Future<void> deleteMultiple(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final db = await NikkiDatabase.database;
+    final placeholders = ids.map((_) => '?').join(',');
+    await db.delete('word_entries', where: 'id IN ($placeholders)', whereArgs: ids);
+  }
+
+  Future<void> assignToNovel(List<int> ids, int novelId) async {
+    if (ids.isEmpty) return;
+    final db = await NikkiDatabase.database;
+    final placeholders = ids.map((_) => '?').join(',');
+    await db.update(
+      'word_entries',
+      {'novelId': novelId},
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
   }
 
   Future<void> deleteAll() async {
