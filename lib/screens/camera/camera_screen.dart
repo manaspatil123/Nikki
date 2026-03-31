@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
@@ -355,10 +356,11 @@ class _CameraScreenState extends State<CameraScreen>
       dontSave: cameraProvider.dontSave,
     );
 
+    final colors = NikkiColors.of(context);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: CameraColors.linen,
+      backgroundColor: colors.dialogBg,
       barrierColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -395,13 +397,6 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (!_permissionGranted) {
-      return CameraPermissionView(
-        isPermanentlyDenied: _permissionPermanentlyDenied,
-        onRequestPermission: _requestPermissionAndInit,
-      );
-    }
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Consumer<CameraProvider>(
@@ -409,14 +404,21 @@ class _CameraScreenState extends State<CameraScreen>
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Camera preview + sleep overlay
-              CameraPreviewLayer(
-                controller: _controller,
-                isCaptured: cameraProvider.isCaptured,
-                isSleeping: _cameraSleeping,
-                lastFramePath: _lastFramePath,
-                onWakeTap: _wakeCamera,
-              ),
+              // Permission view OR camera preview
+              if (!_permissionGranted)
+                CameraPermissionView(
+                  isPermanentlyDenied: _permissionPermanentlyDenied,
+                  onRequestPermission: _requestPermissionAndInit,
+                )
+              else ...[
+                // Camera preview + sleep overlay
+                CameraPreviewLayer(
+                  controller: _controller,
+                  isCaptured: cameraProvider.isCaptured,
+                  isSleeping: _cameraSleeping,
+                  lastFramePath: _lastFramePath,
+                  onWakeTap: _wakeCamera,
+                ),
 
               // Captured image + text overlay
               if (cameraProvider.isCaptured)
@@ -445,6 +447,8 @@ class _CameraScreenState extends State<CameraScreen>
                     ),
                   ),
                 ),
+
+              ], // end of else (camera preview + captured image)
 
               // Top bar
               CameraTopBar(

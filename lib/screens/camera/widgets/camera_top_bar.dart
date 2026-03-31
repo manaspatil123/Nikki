@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:nikki/core/constants/assets.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/models/novel.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 import 'package:nikki/screens/camera/widgets/language_dropdown.dart';
 
 class CameraTopBar extends StatelessWidget {
@@ -22,6 +23,7 @@ class CameraTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Positioned(
       top: 0,
       left: 0,
@@ -32,11 +34,11 @@ class CameraTopBar extends StatelessWidget {
           children: [
             Container(
               height: MediaQuery.of(context).padding.top,
-              color: CameraColors.linen,
+              color: colors.background,
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: CameraColors.linen,
+              color: colors.background,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -50,7 +52,7 @@ class CameraTopBar extends StatelessWidget {
                       selectedNovel?.name ?? '',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: selectedNovel != null ? Colors.black87 : Colors.transparent,
+                        color: selectedNovel != null ? colors.textPrimary : Colors.transparent,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),

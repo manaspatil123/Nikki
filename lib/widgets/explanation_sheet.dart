@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 import 'package:nikki/models/explanation.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
@@ -59,6 +60,7 @@ class _SaveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     final provider = context.watch<ExplanationProvider>();
     final saved = provider.isSaved;
 
@@ -67,14 +69,14 @@ class _SaveButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
-          color: saved ? CameraColors.darkTeal : Colors.white,
+          color: saved ? CameraColors.darkTeal : colors.card,
           border: Border.all(color: CameraColors.darkTeal, width: 1.5),
           borderRadius: BorderRadius.circular(24),
         ),
         child: Text(
           saved ? 'Saved' : 'Save',
           style: TextStyle(
-            color: saved ? Colors.white : CameraColors.darkTeal,
+            color: saved ? Colors.white : colors.textPrimary,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -91,19 +93,20 @@ class _AddToNovelButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: CameraColors.darkTeal, width: 1.5),
+          color: isDark ? Colors.transparent : Colors.white,
+          border: Border.all(color: isDark ? Colors.white : CameraColors.darkTeal, width: 1.5),
           borderRadius: BorderRadius.circular(24),
         ),
-        child: const Text(
+        child: Text(
           'Add to novel',
           style: TextStyle(
-            color: CameraColors.darkTeal,
+            color: isDark ? Colors.white : CameraColors.darkTeal,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -120,6 +123,7 @@ class _RemoveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: () {
         onRemove?.call();
@@ -128,14 +132,14 @@ class _RemoveButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? CameraColors.dangerBorder : Colors.white,
           border: Border.all(color: CameraColors.dangerBorder, width: 2.0),
           borderRadius: BorderRadius.circular(24),
         ),
-        child: const Text(
+        child: Text(
           'Remove from History',
           style: TextStyle(
-            color: CameraColors.dangerBorder,
+            color: isDark ? Colors.white : CameraColors.dangerBorder,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -185,6 +189,7 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     final isHistory = widget.mode == ExplanationSheetMode.history;
     final isNovelDetail = widget.mode == ExplanationSheetMode.novelDetail;
     final hideSimWords = isHistory || isNovelDetail;
@@ -242,7 +247,7 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
                     fontSize: titleSize,
                     fontWeight: FontWeight.bold,
                     fontFamily: _fontFamily,
-                    color: Colors.black,
+                    color: colors.textPrimary,
                   ),
                 ),
                 if (widget.explanation.reading != null) ...[
@@ -252,19 +257,19 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
                     style: TextStyle(
                       fontSize: readingSize,
                       fontFamily: _fontFamily,
-                      color: CameraColors.brown,
+                      color: colors.textSecondary,
                     ),
                   ),
                 ],
-                const Divider(height: 24, color: CameraColors.brown),
+                Divider(height: 24, color: colors.divider),
                 if (widget.explanation.meaning != null)
-                  _Section(title: 'MEANING', child: Text(widget.explanation.meaning!, style: _bodyStyle)),
+                  _Section(title: 'MEANING', child: Text(widget.explanation.meaning!, style: _bodyStyle(colors))),
                 if (widget.explanation.context != null)
-                  _Section(title: 'CONTEXT', child: Text(widget.explanation.context!, style: _bodyStyle)),
+                  _Section(title: 'CONTEXT', child: Text(widget.explanation.context!, style: _bodyStyle(colors))),
                 if (widget.explanation.breakdown != null)
-                  _Section(title: 'BREAKDOWN', child: Text(widget.explanation.breakdown!, style: _bodyStyle)),
+                  _Section(title: 'BREAKDOWN', child: Text(widget.explanation.breakdown!, style: _bodyStyle(colors))),
                 if (widget.explanation.formality != null)
-                  _Section(title: 'FORMALITY', child: Text(widget.explanation.formality!, style: _bodyStyle)),
+                  _Section(title: 'FORMALITY', child: Text(widget.explanation.formality!, style: _bodyStyle(colors))),
                 if (widget.explanation.examples != null && widget.explanation.examples!.isNotEmpty)
                   _Section(
                     title: 'EXAMPLES',
@@ -273,7 +278,7 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
                       children: widget.explanation.examples!
                           .map((e) => Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 2),
-                                child: Text('\u2022  $e', style: _bodyStyle),
+                                child: Text('\u2022  $e', style: _bodyStyle(colors)),
                               ))
                           .toList(),
                     ),
@@ -296,10 +301,10 @@ class _ExplanationBodyState extends State<_ExplanationBody> {
     );
   }
 
-  TextStyle get _bodyStyle => TextStyle(
+  TextStyle _bodyStyle(NikkiColors colors) => TextStyle(
         fontSize: _fontSize,
         fontFamily: _fontFamily,
-        color: Colors.black,
+        color: colors.textPrimary,
         height: 1.5,
       );
 }
@@ -312,9 +317,10 @@ class _FontSizeControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: CameraColors.brown, width: 1),
+        border: Border.all(color: colors.textSecondary, width: 1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -327,11 +333,11 @@ class _FontSizeControls extends StatelessWidget {
               child: Icon(
                 Icons.remove,
                 size: 18,
-                color: onDecrease != null ? CameraColors.brown : CameraColors.brown.withOpacity(0.3),
+                color: onDecrease != null ? colors.textSecondary : colors.textSecondary.withOpacity(0.3),
               ),
             ),
           ),
-          Container(width: 1, height: 20, color: CameraColors.brown),
+          Container(width: 1, height: 20, color: colors.textSecondary),
           GestureDetector(
             onTap: onIncrease,
             child: Padding(
@@ -339,7 +345,7 @@ class _FontSizeControls extends StatelessWidget {
               child: Icon(
                 Icons.add,
                 size: 18,
-                color: onIncrease != null ? CameraColors.brown : CameraColors.brown.withOpacity(0.3),
+                color: onIncrease != null ? colors.textSecondary : colors.textSecondary.withOpacity(0.3),
               ),
             ),
           ),
@@ -360,6 +366,7 @@ class _SimilarWordsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     final settings = context.read<SettingsProvider>();
     final explanationProvider = context.read<ExplanationProvider>();
 
@@ -368,15 +375,15 @@ class _SimilarWordsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               'SIMILAR WORDS',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
-                color: CameraColors.brown,
+                color: colors.textSecondary,
               ),
             ),
           ),
@@ -398,18 +405,18 @@ class _SimilarWordsSection extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: CameraColors.brown),
+                        border: Border.all(color: colors.textSecondary),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(sw.word, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
+                          Text(sw.word, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colors.textPrimary)),
                           Text(
                             sw.reading,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: CameraColors.brown,
+                              color: colors.textSecondary,
                             ),
                           ),
                         ],
@@ -434,6 +441,7 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(top: 20),
       child: Column(
@@ -443,11 +451,11 @@ class _Section extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 1.5,
-                color: CameraColors.brown,
+                color: colors.textSecondary,
               ),
             ),
           ),
@@ -465,6 +473,7 @@ class _ComparisonContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -472,12 +481,12 @@ class _ComparisonContent extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: provider.dismissComparison,
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back, size: 20, color: CameraColors.brown),
-                SizedBox(width: 4),
-                Text('Back', style: TextStyle(fontSize: 14, color: CameraColors.brown)),
+                Icon(Icons.arrow_back, size: 20, color: colors.textSecondary),
+                const SizedBox(width: 4),
+                Text('Back', style: TextStyle(fontSize: 14, color: colors.textSecondary)),
               ],
             ),
           ),
@@ -501,6 +510,7 @@ class _ComparisonBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -509,43 +519,43 @@ class _ComparisonBody extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(comparison.wordA.word, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+                Text(comparison.wordA.word, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary)),
                 Text(
                   comparison.wordA.reading,
-                  style: const TextStyle(fontSize: 14, color: CameraColors.brown),
+                  style: TextStyle(fontSize: 14, color: colors.textSecondary),
                 ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'vs',
-                style: TextStyle(fontSize: 16, color: CameraColors.brown),
+                style: TextStyle(fontSize: 16, color: colors.textSecondary),
               ),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(comparison.wordB.word, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+                Text(comparison.wordB.word, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary)),
                 Text(
                   comparison.wordB.reading,
-                  style: const TextStyle(fontSize: 14, color: CameraColors.brown),
+                  style: TextStyle(fontSize: 14, color: colors.textSecondary),
                 ),
               ],
             ),
           ],
         ),
-        const Divider(height: 24, color: CameraColors.brown),
-        _Section(title: 'DIFFERENCE', child: Text(comparison.difference, style: const TextStyle(fontSize: 15, color: Colors.black))),
-        _Section(title: 'NUANCE', child: Text(comparison.nuance, style: const TextStyle(fontSize: 15, color: Colors.black))),
+        Divider(height: 24, color: colors.divider),
+        _Section(title: 'DIFFERENCE', child: Text(comparison.difference, style: TextStyle(fontSize: 15, color: colors.textPrimary))),
+        _Section(title: 'NUANCE', child: Text(comparison.nuance, style: TextStyle(fontSize: 15, color: colors.textPrimary))),
         _Section(
           title: 'EXAMPLES',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${comparison.wordA.word}: ${comparison.exampleA}', style: const TextStyle(fontSize: 15, color: Colors.black)),
+              Text('${comparison.wordA.word}: ${comparison.exampleA}', style: TextStyle(fontSize: 15, color: colors.textPrimary)),
               const SizedBox(height: 8),
-              Text('${comparison.wordB.word}: ${comparison.exampleB}', style: const TextStyle(fontSize: 15, color: Colors.black)),
+              Text('${comparison.wordB.word}: ${comparison.exampleB}', style: TextStyle(fontSize: 15, color: colors.textPrimary)),
             ],
           ),
         ),
@@ -562,24 +572,25 @@ class _ErrorContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               size: 48,
-              color: CameraColors.brown,
+              color: colors.textSecondary,
             ),
             const SizedBox(height: 16),
             Text(
               error,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: CameraColors.brown,
+                color: colors.textSecondary,
               ),
             ),
           ],

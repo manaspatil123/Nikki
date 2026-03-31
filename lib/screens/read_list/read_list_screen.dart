@@ -8,6 +8,7 @@ import 'package:nikki/models/novel.dart';
 import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/screens/read_list/add_novel_dialog.dart';
 import 'package:nikki/screens/novel_detail/novel_detail_screen.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 
 class ReadListScreen extends StatelessWidget {
   final VoidCallback? onCamera;
@@ -49,11 +50,12 @@ class ReadListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     final cameraProvider = context.watch<CameraProvider>();
     final novels = cameraProvider.novels;
 
     return Scaffold(
-      backgroundColor: CameraColors.linen,
+      backgroundColor: colors.background,
         body: Stack(
           children: [
             Column(
@@ -65,14 +67,14 @@ class ReadListScreen extends StatelessWidget {
                     children: [
                       Container(
                         height: MediaQuery.of(context).padding.top,
-                        color: CameraColors.linen,
+                        color: colors.background,
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
                         ),
-                        color: CameraColors.linen,
+                        color: colors.background,
                         child: Row(
                           children: [
                             // Camera icon — left (just icon, no circle)
@@ -93,14 +95,14 @@ class ReadListScreen extends StatelessWidget {
                             ),
 
                             // Title — centered
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 'Read List',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  color: colors.textPrimary,
                                 ),
                               ),
                             ),
@@ -114,13 +116,13 @@ class ReadListScreen extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: Colors.black,
+                                    color: colors.textPrimary,
                                     width: 1.5,
                                   ),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.settings_outlined,
-                                  color: CameraColors.brown,
+                                  color: colors.textSecondary,
                                   size: 30,
                                 ),
                               ),
@@ -135,13 +137,13 @@ class ReadListScreen extends StatelessWidget {
                 // Novel list
                 Expanded(
                   child: novels.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'No novels yet.\nTap "Add new" to get started.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 15,
-                              color: CameraColors.brown,
+                              color: colors.textSecondary,
                             ),
                           ),
                         )
@@ -222,6 +224,7 @@ class _NovelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Padding(
@@ -229,7 +232,7 @@ class _NovelCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.card,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -242,10 +245,10 @@ class _NovelCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     novel.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: colors.textPrimary,
                     ),
                   ),
                 ),
@@ -257,11 +260,11 @@ class _NovelCard extends StatelessWidget {
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: CameraColors.brown, width: 1.5),
+                      border: Border.all(color: colors.textSecondary, width: 1.5),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.edit_outlined,
-                      color: CameraColors.brown,
+                      color: colors.textSecondary,
                       size: 15,
                     ),
                   ),
@@ -276,9 +279,9 @@ class _NovelCard extends StatelessWidget {
                 novel.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Colors.black87,
+                  color: colors.textPrimary,
                 ),
               ),
             ],
@@ -299,9 +302,9 @@ class _NovelCard extends StatelessWidget {
             // Created date
             Text(
               'Created on ${_formatDate(novel.createdAt)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: CameraColors.brown,
+                color: colors.textSecondary,
               ),
             ),
 

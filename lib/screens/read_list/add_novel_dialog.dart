@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:nikki/core/constants/languages.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 import 'package:nikki/models/explanation_category.dart';
 import 'package:nikki/models/novel.dart';
 
@@ -89,16 +90,17 @@ class _AddNovelDialogState extends State<AddNovelDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        backgroundColor: Colors.black54,
+        backgroundColor: colors.overlay,
         body: Center(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
             decoration: BoxDecoration(
-              color: CameraColors.linen,
+              color: colors.background,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -112,11 +114,11 @@ class _AddNovelDialogState extends State<AddNovelDialog> {
                       Expanded(
                         child: Text(
                           _isEditMode ? 'Edit Book' : "What's your next read?",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Georgia',
-                            color: Colors.black,
+                            color: colors.textPrimary,
                           ),
                         ),
                       ),
@@ -127,9 +129,9 @@ class _AddNovelDialogState extends State<AddNovelDialog> {
                           height: 32,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: CameraColors.brown, width: 1.5),
+                            border: Border.all(color: colors.textSecondary, width: 1.5),
                           ),
-                          child: const Icon(Icons.close, size: 16, color: CameraColors.brown),
+                          child: Icon(Icons.close, size: 16, color: colors.textSecondary),
                         ),
                       ),
                     ],
@@ -182,16 +184,16 @@ class _AddNovelDialogState extends State<AddNovelDialog> {
                             children: [
                               Icon(
                                 _advancedOpen ? Icons.expand_less : Icons.expand_more,
-                                color: CameraColors.brown,
+                                color: colors.textSecondary,
                                 size: 20,
                               ),
                               const SizedBox(width: 4),
-                              const Text(
+                              Text(
                                 'Advanced Settings',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: CameraColors.brown,
+                                  color: colors.textSecondary,
                                 ),
                               ),
                             ],
@@ -313,12 +315,13 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,
-        color: CameraColors.brown,
+        color: colors.textSecondary,
       ),
     );
   }
@@ -337,23 +340,24 @@ class _InputField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      style: const TextStyle(fontSize: 15, color: Colors.black),
+      style: TextStyle(fontSize: 15, color: colors.textPrimary),
       cursorColor: CameraColors.teal,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: CameraColors.brown.withOpacity(0.5)),
+        hintStyle: TextStyle(color: colors.textSecondary.withOpacity(0.5)),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: colors.inputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: CameraColors.caramel),
+          borderSide: BorderSide(color: colors.inputBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -374,14 +378,15 @@ class _LanguageDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Opacity(
       opacity: enabled ? 1.0 : 0.5,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.inputFill,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: CameraColors.caramel),
+          border: Border.all(color: colors.inputBorder),
         ),
         child: IgnorePointer(
           ignoring: !enabled,
@@ -389,9 +394,9 @@ class _LanguageDropdown extends StatelessWidget {
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              icon: const Icon(Icons.expand_more, color: CameraColors.brown),
-              dropdownColor: CameraColors.linen,
-              style: const TextStyle(fontSize: 15, color: Colors.black),
+              icon: Icon(Icons.expand_more, color: colors.textSecondary),
+              dropdownColor: colors.background,
+              style: TextStyle(fontSize: 15, color: colors.textPrimary),
               items: Languages.cameraSourceLanguages
                   .map((lang) => DropdownMenuItem(
                         value: lang,
@@ -412,6 +417,7 @@ class _LanguageDropdown extends StatelessWidget {
 class _ImageSelectPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Row(
       children: List.generate(3, (i) {
         return Padding(
@@ -424,13 +430,13 @@ class _ImageSelectPlaceholder extends StatelessWidget {
               width: 70,
               height: 70,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.inputFill,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: CameraColors.caramel),
+                border: Border.all(color: colors.inputBorder),
               ),
               child: Icon(
                 Icons.add_photo_alternate_outlined,
-                color: CameraColors.brown.withOpacity(0.4),
+                color: colors.textSecondary.withOpacity(0.4),
                 size: 28,
               ),
             ),
@@ -468,6 +474,7 @@ class _AdvancedSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -487,12 +494,12 @@ class _AdvancedSection extends StatelessWidget {
                     size: 20,
                     color: enabledCategories.contains(cat)
                         ? CameraColors.teal
-                        : CameraColors.brown,
+                        : colors.textSecondary,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     cat.displayName,
-                    style: const TextStyle(fontSize: 14, color: Colors.black),
+                    style: TextStyle(fontSize: 14, color: colors.textPrimary),
                   ),
                 ],
               ),
@@ -521,20 +528,21 @@ class _SmallDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.inputFill,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: CameraColors.caramel),
+        border: Border.all(color: colors.inputBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.expand_more, color: CameraColors.brown),
-          dropdownColor: CameraColors.linen,
-          style: const TextStyle(fontSize: 14, color: Colors.black),
+          icon: Icon(Icons.expand_more, color: colors.textSecondary),
+          dropdownColor: colors.background,
+          style: TextStyle(fontSize: 14, color: colors.textPrimary),
           items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
           onChanged: (v) {
             if (v != null) onChanged(v);

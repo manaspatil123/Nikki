@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 
 /// A bottom-sheet body with two snap points: collapsed (initialFraction)
 /// and expanded (maxFraction). Drag up on the handle -> snaps to top.
@@ -80,6 +80,7 @@ class _HandleDraggableSheetState extends State<HandleDraggableSheet>
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     final screenHeight = MediaQuery.of(context).size.height;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
@@ -100,16 +101,16 @@ class _HandleDraggableSheetState extends State<HandleDraggableSheet>
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: const BoxDecoration(
-                color: CameraColors.linen,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              decoration: BoxDecoration(
+                color: colors.dialogBg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Center(
                 child: Container(
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: CameraColors.caramel,
+                    color: colors.handle,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),

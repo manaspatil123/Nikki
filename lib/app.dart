@@ -29,16 +29,20 @@ class NikkiApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => HistoryProvider(wordRepo)),
         ChangeNotifierProvider(create: (_) => SettingsProvider(settingsRepo)),
       ],
-      child: MaterialApp(
-        title: 'Nikki',
-        debugShowCheckedModeBanner: false,
-        theme: NikkiTheme.light(),
-        darkTheme: NikkiTheme.dark(),
-        themeMode: ThemeMode.system,
-        initialRoute: '/',
-        routes: {
-          '/': (context) => const HomeScreen(),
-          '/history': (context) => const HistoryScreen(),
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, _) {
+          return MaterialApp(
+            title: 'Nikki',
+            debugShowCheckedModeBanner: false,
+            theme: NikkiTheme.light(),
+            darkTheme: NikkiTheme.dark(),
+            themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
+            initialRoute: '/',
+            routes: {
+              '/': (context) => const HomeScreen(),
+              '/history': (context) => const HistoryScreen(),
+            },
+          );
         },
       ),
     );

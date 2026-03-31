@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:nikki/core/constants/assets.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 
 class CameraBottomBar extends StatelessWidget {
   final bool isCaptured;
@@ -21,6 +22,7 @@ class CameraBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Stack(
       children: [
         // Capture / Retake button — centered
@@ -93,7 +95,7 @@ class CameraBottomBar extends StatelessWidget {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: CameraColors.linen,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: CameraColors.teal,

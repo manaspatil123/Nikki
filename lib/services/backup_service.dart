@@ -4,13 +4,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:nikki/data/database.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
+import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
 
 /// Exports and imports all app data (novels, word entries) as a JSON file.
 class BackupService {
   /// Export all data to a JSON file and open the share sheet.
-  static Future<void> export() async {
+  static Future<void> export(BuildContext context) async {
     final db = await NikkiDatabase.database;
 
     final novels = await db.query('novels');
@@ -27,14 +28,20 @@ class BackupService {
 
     // Write to a temp file.
     final dir = await path_provider.getTemporaryDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${dir.path}/nikki_backup_$timestamp.json');
+    final now = DateTime.now();
+    final dateStamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final file = File('${dir.path}/nikki_backup_$dateStamp.json');
     await file.writeAsString(json);
 
-    // Open share sheet.
+    // Open share sheet with position for iPad compatibility.
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : const Rect.fromLTWH(100, 100, 200, 50);
+
     await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: 'Nikki Backup',
+      [XFile(file.path, mimeType: 'application/json')],
+      sharePositionOrigin: origin,
     );
   }
 

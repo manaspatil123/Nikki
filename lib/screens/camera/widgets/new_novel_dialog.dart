@@ -1,43 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nikki/providers/camera_provider.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 
 Future<void> showNewNovelDialog(BuildContext context) async {
+  final colors = NikkiColors.of(context);
   final controller = TextEditingController();
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
-        backgroundColor: Colors.black,
+        backgroundColor: colors.dialogBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Colors.white24),
+          side: BorderSide(color: colors.divider),
         ),
-        title: const Text(
+        title: Text(
           'New Novel',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: colors.textPrimary),
         ),
         content: TextField(
           controller: controller,
           autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
+          style: TextStyle(color: colors.textPrimary),
+          decoration: InputDecoration(
             hintText: 'Novel name',
-            hintStyle: TextStyle(color: Colors.white38),
+            hintStyle: TextStyle(color: colors.hint),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.white24),
+              borderSide: BorderSide(color: colors.divider),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.white),
+              borderSide: BorderSide(color: colors.textPrimary),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(
+            child: Text(
               'Cancel',
-              style: TextStyle(color: Colors.white54),
+              style: TextStyle(color: colors.icon),
             ),
           ),
           TextButton(
@@ -48,9 +50,9 @@ Future<void> showNewNovelDialog(BuildContext context) async {
                 Navigator.pop(dialogContext);
               }
             },
-            child: const Text(
+            child: Text(
               'Create',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: colors.textPrimary),
             ),
           ),
         ],

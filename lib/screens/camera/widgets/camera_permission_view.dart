@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:nikki/core/constants/camera_colors.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+/// Permission request view — NOT a full Scaffold.
+/// Rendered inside the camera screen's Stack, below the top/bottom bars.
 class CameraPermissionView extends StatelessWidget {
   final bool isPermanentlyDenied;
   final VoidCallback onRequestPermission;
@@ -13,9 +16,9 @@ class CameraPermissionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
+    return Container(
+      color: const Color(0xFF2A2A2A),
+      child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
@@ -23,7 +26,7 @@ class CameraPermissionView extends StatelessWidget {
             children: [
               const Icon(
                 Icons.camera_alt_outlined,
-                color: Colors.white54,
+                color: Colors.white38,
                 size: 64,
               ),
               const SizedBox(height: 24),
@@ -43,8 +46,8 @@ class CameraPermissionView extends StatelessWidget {
                     ? () => openAppSettings()
                     : onRequestPermission,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white54),
+                  foregroundColor: CameraColors.teal,
+                  side: const BorderSide(color: CameraColors.teal),
                 ),
                 child: Text(
                   isPermanentlyDenied ? 'Open Settings' : 'Grant Permission',

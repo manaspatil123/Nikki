@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 
 class DateSectionHeader extends StatelessWidget {
   final int timestamp;
@@ -8,6 +8,7 @@ class DateSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 6),
       child: Column(
@@ -15,16 +16,16 @@ class DateSectionHeader extends StatelessWidget {
         children: [
           Text(
             _formatDateLabel(timestamp),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: CameraColors.brown,
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 4),
           Container(
             height: 1,
-            color: CameraColors.caramel,
+            color: colors.divider,
           ),
         ],
       ),

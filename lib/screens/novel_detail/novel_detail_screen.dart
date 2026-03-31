@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 import 'package:nikki/data/word_repository.dart';
 import 'package:nikki/widgets/date_section_header.dart';
 import 'package:nikki/models/novel.dart';
@@ -55,6 +56,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
   }
 
   void _showWordSheet(WordEntry entry) {
+    final colors = NikkiColors.of(context);
     final explanationProvider = context.read<ExplanationProvider>();
     explanationProvider.showCachedExplanation(entry.selectedText, entry.explanationJson);
 
@@ -62,7 +64,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: CameraColors.linen,
+      backgroundColor: colors.dialogBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -87,10 +89,11 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-      backgroundColor: CameraColors.linen,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,17 +104,17 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, color: CameraColors.brown),
+                    icon: Icon(Icons.arrow_back, color: colors.textSecondary),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       widget.novel.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: colors.textPrimary,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -131,21 +134,21 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
               child: TextField(
                 controller: _searchController,
                 onChanged: _onSearchChanged,
-                style: const TextStyle(color: Colors.black, fontSize: 15),
+                style: TextStyle(color: colors.textPrimary, fontSize: 15),
                 cursorColor: CameraColors.teal,
                 decoration: InputDecoration(
                   hintText: 'Search words...',
-                  hintStyle: const TextStyle(color: CameraColors.brown),
-                  prefixIcon: const Icon(Icons.search, color: CameraColors.brown),
+                  hintStyle: TextStyle(color: colors.textSecondary),
+                  prefixIcon: Icon(Icons.search, color: colors.textSecondary),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: colors.inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: CameraColors.caramel),
+                    borderSide: BorderSide(color: colors.inputBorder),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -159,15 +162,15 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
             const SizedBox(height: 8),
 
             // "Words Learnt" heading
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
               child: Text(
                 'Words Learnt',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1,
-                  color: CameraColors.brown,
+                  color: colors.textSecondary,
                 ),
               ),
             ),
@@ -179,11 +182,11 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator(color: CameraColors.teal))
                   : _entries.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'No words saved yet.\nStart reading to add words.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 15, color: CameraColors.brown),
+                            style: TextStyle(fontSize: 15, color: colors.textSecondary),
                           ),
                         )
                       : ListView.builder(
@@ -224,13 +227,14 @@ class _NovelInfoBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: CameraColors.teal, width: 1.5),
         ),
@@ -240,7 +244,7 @@ class _NovelInfoBox extends StatelessWidget {
             if (novel.description.isNotEmpty) ...[
               Text(
                 novel.description,
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                style: TextStyle(fontSize: 14, color: colors.textPrimary),
               ),
               const SizedBox(height: 10),
             ],
@@ -261,7 +265,7 @@ class _NovelInfoBox extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Created on ${_formatDate(novel.createdAt)}',
-              style: const TextStyle(fontSize: 12, color: CameraColors.brown),
+              style: TextStyle(fontSize: 12, color: colors.textSecondary),
             ),
           ],
         ),
@@ -286,13 +290,14 @@ class _WordItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.card,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -303,10 +308,10 @@ class _WordItem extends StatelessWidget {
                 children: [
                   Text(
                     entry.selectedText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -314,20 +319,20 @@ class _WordItem extends StatelessWidget {
                     _getBriefMeaning(entry.explanationJson),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, color: CameraColors.brown),
+                    style: TextStyle(fontSize: 14, color: colors.textSecondary),
                   ),
                 ],
               ),
             ),
             if (entry.notes.isNotEmpty)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.sticky_note_2_outlined, size: 16, color: CameraColors.caramel),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Icon(Icons.sticky_note_2_outlined, size: 16, color: colors.divider),
               ),
             const SizedBox(width: 8),
             Text(
               _formatDate(entry.createdAt),
-              style: const TextStyle(fontSize: 12, color: CameraColors.brown),
+              style: TextStyle(fontSize: 12, color: colors.textSecondary),
             ),
           ],
         ),
@@ -404,26 +409,27 @@ class _NotesAreaState extends State<_NotesArea> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.inputFill,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: CameraColors.caramel),
+          border: Border.all(color: colors.inputBorder),
         ),
         child: TextField(
           controller: _controller,
           focusNode: _focusNode,
           maxLines: null,
           minLines: 3,
-          style: const TextStyle(fontSize: 14, color: Colors.black, fontFamily: 'Georgia'),
+          style: TextStyle(fontSize: 14, color: colors.textPrimary, fontFamily: 'Georgia'),
           cursorColor: CameraColors.teal,
           decoration: InputDecoration(
             hintText: 'Add notes...',
-            hintStyle: TextStyle(color: CameraColors.brown.withOpacity(0.4)),
+            hintStyle: TextStyle(color: colors.textSecondary.withOpacity(0.4)),
             border: InputBorder.none,
             isDense: true,
             contentPadding: EdgeInsets.zero,

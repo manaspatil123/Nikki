@@ -8,6 +8,7 @@ import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/providers/history_provider.dart';
 import 'package:nikki/providers/explanation_provider.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 import 'package:nikki/widgets/date_section_header.dart';
 import 'package:nikki/widgets/explanation_sheet.dart';
 import 'package:nikki/widgets/handle_draggable_sheet.dart';
@@ -65,9 +66,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // _showActions is now handled by PopupMenuButton in the build method.
 
   void _showAddToNovelDialogForEntry(WordEntry entry) {
+    final colors = NikkiColors.of(context);
     showDialog(
       context: context,
-      barrierColor: Colors.black54,
+      barrierColor: colors.overlay,
       builder: (ctx) => _AddToNovelDialog(
         onSave: (novelId) {
           context.read<HistoryProvider>().assignToNovel([entry.id!], novelId);
@@ -84,9 +86,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _showAddToNovelDialog() {
     if (_selectedIds.isEmpty) return;
+    final colors = NikkiColors.of(context);
     showDialog(
       context: context,
-      barrierColor: Colors.black54,
+      barrierColor: colors.overlay,
       builder: (ctx) => _AddToNovelDialog(
         onSave: (novelId) {
           context.read<HistoryProvider>().assignToNovel(_selectedIds.toList(), novelId);
@@ -98,12 +101,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     final historyProvider = context.watch<HistoryProvider>();
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: CameraColors.linen,
+        backgroundColor: colors.background,
         body: SafeArea(
           child: Column(
             children: [
@@ -113,17 +117,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: CameraColors.brown),
+                      icon: Icon(Icons.arrow_back, color: colors.textSecondary),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'History',
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: colors.textPrimary,
                         ),
                       ),
                     ),
@@ -131,7 +135,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     if (_selectMode) ...[
                       PopupMenuButton<String>(
                         enabled: _selectedIds.isNotEmpty,
-                        color: Colors.white,
+                        color: colors.card,
                         offset: const Offset(0, 40),
                         constraints: const BoxConstraints(minWidth: 180),
                         onSelected: (value) {
@@ -153,14 +157,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ],
                         child: Icon(
                           Icons.more_horiz,
-                          color: _selectedIds.isNotEmpty ? CameraColors.brown : CameraColors.brown.withOpacity(0.3),
+                          color: _selectedIds.isNotEmpty ? colors.textSecondary : colors.textSecondary.withOpacity(0.3),
                           size: 28,
                         ),
                       ),
                       const SizedBox(width: 12),
                       GestureDetector(
                         onTap: _exitSelectMode,
-                        child: const Icon(Icons.close, color: CameraColors.brown, size: 24),
+                        child: Icon(Icons.close, color: colors.textSecondary, size: 24),
                       ),
                     ] else
                       GestureDetector(
@@ -181,13 +185,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
 
               // Subtitle
-              const Padding(
-                padding: EdgeInsets.only(left: 60, bottom: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 60, bottom: 4),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'History is automatically cleared after 30 days',
-                    style: TextStyle(fontSize: 12, color: CameraColors.brown),
+                    style: TextStyle(fontSize: 12, color: colors.textSecondary),
                   ),
                 ),
               ),
@@ -198,21 +202,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: TextField(
                   controller: _searchController,
                   onChanged: (query) => historyProvider.updateSearchQuery(query),
-                  style: const TextStyle(color: Colors.black, fontSize: 15),
+                  style: TextStyle(color: colors.textPrimary, fontSize: 15),
                   cursorColor: CameraColors.teal,
                   decoration: InputDecoration(
                     hintText: 'Search words...',
-                    hintStyle: const TextStyle(color: CameraColors.brown),
-                    prefixIcon: const Icon(Icons.search, color: CameraColors.brown),
+                    hintStyle: TextStyle(color: colors.textSecondary),
+                    prefixIcon: Icon(Icons.search, color: colors.textSecondary),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: colors.inputFill,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: CameraColors.caramel),
+                      borderSide: BorderSide(color: colors.inputBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -250,6 +254,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildWordList(BuildContext context, HistoryProvider provider) {
+    final colors = NikkiColors.of(context);
     if (provider.isLoading) {
       return const Center(child: CircularProgressIndicator(color: CameraColors.teal));
     }
@@ -258,7 +263,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return Center(
         child: Text(
           provider.searchQuery.isNotEmpty ? 'No results found.' : 'No saved words yet.',
-          style: const TextStyle(fontSize: 15, color: CameraColors.brown),
+          style: TextStyle(fontSize: 15, color: colors.textSecondary),
         ),
       );
     }
@@ -294,6 +299,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _showExplanationSheet(BuildContext context, WordEntry entry) {
+    final colors = NikkiColors.of(context);
     final explanationProvider = context.read<ExplanationProvider>();
     explanationProvider.showCachedExplanation(entry.selectedText, entry.explanationJson);
 
@@ -304,7 +310,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      backgroundColor: CameraColors.linen,
+      backgroundColor: colors.dialogBg,
       builder: (sheetCtx) => HandleDraggableSheet(
         initialFraction: 0.9,
         maxFraction: 0.9,
@@ -410,6 +416,7 @@ class _WordListItemState extends State<_WordListItem>
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: SizedBox(
@@ -474,7 +481,7 @@ class _WordListItemState extends State<_WordListItem>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colors.card,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
@@ -488,7 +495,7 @@ class _WordListItemState extends State<_WordListItem>
                             shape: BoxShape.circle,
                             color: widget.isSelected ? CameraColors.teal : Colors.transparent,
                             border: Border.all(
-                              color: widget.isSelected ? CameraColors.teal : CameraColors.brown,
+                              color: widget.isSelected ? CameraColors.teal : colors.textSecondary,
                               width: 1.5,
                             ),
                           ),
@@ -505,10 +512,10 @@ class _WordListItemState extends State<_WordListItem>
                           children: [
                             Text(
                               widget.entry.selectedText,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                                color: colors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -516,9 +523,9 @@ class _WordListItemState extends State<_WordListItem>
                               _getBriefMeaning(widget.entry.explanationJson),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
-                                color: CameraColors.brown,
+                                color: colors.textSecondary,
                               ),
                             ),
                           ],
@@ -527,7 +534,7 @@ class _WordListItemState extends State<_WordListItem>
                       const SizedBox(width: 12),
                       Text(
                         _formatDate(widget.entry.createdAt),
-                        style: const TextStyle(fontSize: 12, color: CameraColors.brown),
+                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
                       ),
                     ],
                   ),
@@ -572,17 +579,18 @@ class _AddToNovelDialogState extends State<_AddToNovelDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     final novels = context.watch<CameraProvider>().novels;
 
     return Scaffold(
-      backgroundColor: Colors.black54,
+      backgroundColor: colors.overlay,
       resizeToAvoidBottomInset: false,
       body: Center(
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 28, vertical: 80),
           constraints: const BoxConstraints(maxHeight: 500),
           decoration: BoxDecoration(
-            color: CameraColors.linen,
+            color: colors.background,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -593,14 +601,14 @@ class _AddToNovelDialogState extends State<_AddToNovelDialog> {
                 padding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'I wish to save these words to...',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Georgia',
-                          color: Colors.black,
+                          color: colors.textPrimary,
                         ),
                       ),
                     ),
@@ -611,9 +619,9 @@ class _AddToNovelDialogState extends State<_AddToNovelDialog> {
                         height: 28,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: CameraColors.brown, width: 1.5),
+                          border: Border.all(color: colors.textSecondary, width: 1.5),
                         ),
-                        child: const Icon(Icons.close, size: 14, color: CameraColors.brown),
+                        child: Icon(Icons.close, size: 14, color: colors.textSecondary),
                       ),
                     ),
                   ],
@@ -624,11 +632,11 @@ class _AddToNovelDialogState extends State<_AddToNovelDialog> {
               // Novel list
               Flexible(
                 child: novels.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(24),
+                    ? Padding(
+                        padding: const EdgeInsets.all(24),
                         child: Text(
                           'No novels created yet.',
-                          style: TextStyle(fontSize: 14, color: CameraColors.brown),
+                          style: TextStyle(fontSize: 14, color: colors.textSecondary),
                         ),
                       )
                     : ListView.builder(
@@ -644,7 +652,7 @@ class _AddToNovelDialogState extends State<_AddToNovelDialog> {
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: colors.card,
                                 borderRadius: BorderRadius.circular(10),
                                 border: isSelected
                                     ? Border.all(color: CameraColors.teal, width: 1.5)
@@ -659,7 +667,7 @@ class _AddToNovelDialogState extends State<_AddToNovelDialog> {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: isSelected ? CameraColors.teal : CameraColors.brown,
+                                        color: isSelected ? CameraColors.teal : colors.textSecondary,
                                         width: 1.5,
                                       ),
                                     ),
@@ -683,17 +691,17 @@ class _AddToNovelDialogState extends State<_AddToNovelDialog> {
                                       children: [
                                         Text(
                                           novel.name,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.w600,
-                                            color: Colors.black,
+                                            color: colors.textPrimary,
                                           ),
                                         ),
                                         Text(
                                           novel.sourceLanguage,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 12,
-                                            color: CameraColors.brown,
+                                            color: colors.textSecondary,
                                           ),
                                         ),
                                       ],

@@ -13,6 +13,7 @@ class SettingsProvider extends ChangeNotifier {
   String googleCloudApiKey = '';
   bool showGoogleCloudApiKey = false;
   bool useGoogleOcr = false;
+  bool darkMode = false;
   bool isLoaded = false;
 
   SettingsProvider(this._settingsRepository) {
@@ -27,6 +28,7 @@ class SettingsProvider extends ChangeNotifier {
       apiKey = await _settingsRepository.getApiKey();
       googleCloudApiKey = await _settingsRepository.getGoogleCloudApiKey();
       useGoogleOcr = await _settingsRepository.getUseGoogleOcr();
+      darkMode = await _settingsRepository.getDarkMode();
       isLoaded = true;
       notifyListeners();
     } catch (e) {
@@ -102,6 +104,16 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> ensureLoaded() async {
     if (isLoaded) return;
     await _load();
+  }
+
+  Future<void> toggleDarkMode() async {
+    darkMode = !darkMode;
+    notifyListeners();
+    try {
+      await _settingsRepository.setDarkMode(darkMode);
+    } catch (e) {
+      debugPrint('SettingsProvider.toggleDarkMode error: $e');
+    }
   }
 
   Future<void> toggleUseGoogleOcr() async {

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:nikki/core/constants/languages.dart';
 import 'package:nikki/models/explanation_category.dart';
+import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/providers/settings_provider.dart';
 import 'package:nikki/providers/history_provider.dart';
 import 'package:nikki/services/backup_service.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 
 class SettingsScreen extends StatelessWidget {
   final VoidCallback? onBack;
@@ -13,11 +15,10 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = NikkiColors.of(context);
     final settings = context.watch<SettingsProvider>();
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -62,7 +63,7 @@ class SettingsScreen extends StatelessWidget {
                       onSelect: (lang) => settings.setSourceLanguage(lang),
                     ),
                   ),
-                  _buildDivider(theme),
+                  _buildDivider(colors),
                   _LanguageRow(
                     label: 'Target Language',
                     value: settings.targetLanguage,
@@ -81,14 +82,14 @@ class SettingsScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
                     child: Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Use Google Cloud Vision', style: TextStyle(fontSize: 14)),
+                              const Text('Use Google Cloud Vision', style: TextStyle(fontSize: 14)),
                               Text(
                                 'Online, requires API key. Better for some layouts.',
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                                style: TextStyle(fontSize: 12, color: colors.textSecondary),
                               ),
                             ],
                           ),
@@ -125,7 +126,7 @@ class SettingsScreen extends StatelessWidget {
                     label: 'Export Data',
                     onTap: () async {
                       try {
-                        await BackupService.export();
+                        await BackupService.export(context);
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -135,23 +136,43 @@ class SettingsScreen extends StatelessWidget {
                       }
                     },
                   ),
-                  _buildDivider(theme),
+                  _buildDivider(colors),
                   _ActionRow(
                     label: 'Import Data',
                     onTap: () async {
                       final msg = await BackupService.import();
                       if (context.mounted) {
+                        // Refresh all providers so imported data shows immediately.
+                        context.read<CameraProvider>().loadNovels();
+                        context.read<HistoryProvider>().loadEntries();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(msg)),
                         );
                       }
                     },
                   ),
-                  _buildDivider(theme),
+                  _buildDivider(colors),
                   _ActionRow(
                     label: 'Clear All History',
                     isDestructive: true,
                     onTap: () => _showClearConfirmation(context),
+                  ),
+
+                  const SizedBox(height: 24),
+                  _SectionHeader('THEME'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text('Dark Mode', style: TextStyle(fontSize: 14)),
+                        ),
+                        Switch(
+                          value: settings.darkMode,
+                          onChanged: (_) => settings.toggleDarkMode(),
+                        ),
+                      ],
+                    ),
                   ),
 
                   const SizedBox(height: 24),
@@ -168,8 +189,8 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDivider(ThemeData theme) {
-    return Divider(height: 1, indent: 20, endIndent: 20, color: theme.dividerColor);
+  Widget _buildDivider(NikkiColors colors) {
+    return Divider(height: 1, indent: 20, endIndent: 20, color: colors.divider);
   }
 
   void _showLanguageDialog(
@@ -295,7 +316,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = NikkiColors.of(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -305,7 +326,7 @@ class _SectionHeader extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.5,
-          color: theme.colorScheme.onSurface.withOpacity(0.5),
+          color: colors.textSecondary,
         ),
       ),
     );
@@ -355,7 +376,7 @@ class _LanguageRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = NikkiColors.of(context);
 
     return InkWell(
       onTap: onTap,
@@ -367,10 +388,10 @@ class _LanguageRow extends StatelessWidget {
             const Spacer(),
             Text(
               value,
-              style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+              style: TextStyle(fontSize: 14, color: colors.textSecondary),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.4)),
+            Icon(Icons.chevron_right, size: 20, color: colors.icon),
           ],
         ),
       ),
@@ -393,7 +414,7 @@ class _ApiKeyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = NikkiColors.of(context);
 
     String displayKey;
     if (apiKey.isEmpty) {
@@ -409,26 +430,20 @@ class _ApiKeyRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
           children: [
-            const Text('OpenAI API Key', style: TextStyle(fontSize: 14)),
+            const Text('API Key', style: TextStyle(fontSize: 14)),
             const Spacer(),
-            Text(
-              displayKey,
-              style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+            Flexible(
+              child: Text(
+                displayKey,
+                style: TextStyle(fontSize: 14, color: colors.textSecondary),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             const SizedBox(width: 4),
-            IconButton(
-              icon: Icon(
-                showApiKey ? Icons.visibility_off : Icons.visibility,
-                size: 20,
-                color: theme.colorScheme.onSurface.withOpacity(0.4),
-              ),
-              onPressed: onToggleVisibility,
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.all(4),
-            ),
+            Icon(Icons.chevron_right, size: 20, color: colors.icon),
           ],
         ),
       ),
@@ -477,7 +492,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = NikkiColors.of(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -487,7 +502,7 @@ class _InfoRow extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+            style: TextStyle(fontSize: 14, color: colors.textSecondary),
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nikki/core/constants/camera_colors.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 import 'package:nikki/core/constants/languages.dart';
 
 class LanguageDropdown extends StatefulWidget {
@@ -21,10 +22,11 @@ class _LanguageDropdownState extends State<LanguageDropdown> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return SizedBox(
       width: 90,
       child: PopupMenuButton<String>(
-        color: CameraColors.linen,
+        color: colors.background,
         offset: const Offset(0, 53),
         onOpened: () => setState(() => _isOpen = true),
         onCanceled: () => setState(() => _isOpen = false),
@@ -55,7 +57,7 @@ class _LanguageDropdownState extends State<LanguageDropdown> {
                 child: Text(
                   Languages.nativeName(lang),
                   style: TextStyle(
-                    color: isSelected ? CameraColors.brown : Colors.black54,
+                    color: isSelected ? CameraColors.brown : colors.icon,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),

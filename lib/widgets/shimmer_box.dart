@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nikki/theme/nikki_colors.dart';
 
 class ShimmerBox extends StatefulWidget {
   final double widthFraction;
@@ -33,6 +34,7 @@ class _ShimmerBoxState extends State<ShimmerBox>
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return AnimatedBuilder(
       animation: _animation,
       builder: (_, __) => FractionallySizedBox(
@@ -55,6 +57,7 @@ class ShimmerContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
     return const SingleChildScrollView(
       padding: EdgeInsets.all(20),
       child: Column(
