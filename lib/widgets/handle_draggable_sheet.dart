@@ -83,10 +83,12 @@ class _HandleDraggableSheetState extends State<HandleDraggableSheet>
     final colors = NikkiColors.of(context);
     final screenHeight = MediaQuery.of(context).size.height;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final availableHeight = screenHeight - keyboardHeight;
 
-    // When keyboard is open, expand to max so notes stay visible.
+    // When keyboard is open, use available height (minus keyboard)
+    // so content starts from the top of the visible area.
     final effectiveHeight = keyboardHeight > 0
-        ? screenHeight * widget.maxFraction
+        ? availableHeight * widget.maxFraction
         : screenHeight * _fraction;
 
     return SizedBox(

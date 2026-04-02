@@ -156,7 +156,17 @@ class ReadListScreen extends StatelessWidget {
                               novel: novel,
                               onTap: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => NovelDetailScreen(novel: novel)),
+                                MaterialPageRoute(
+                                  builder: (_) => NovelDetailScreen(
+                                    novel: novel,
+                                    onStartReading: () {
+                                      final cp = context.read<CameraProvider>();
+                                      cp.selectNovel(novel);
+                                      Navigator.pop(context); // pop novel detail
+                                      if (onCamera != null) onCamera!();
+                                    },
+                                  ),
+                                ),
                               ),
                               onEdit: () => _showEditNovelDialog(context, novel),
                               onRead: () {

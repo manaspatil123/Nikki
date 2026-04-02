@@ -465,14 +465,18 @@ class _CameraScreenState extends State<CameraScreen>
                     cameraProvider.setSourceLanguage(lang),
                 onArrowTap: widget.onBack ?? () => Navigator.pop(context),
                 onNovelTap: cameraProvider.selectedNovel != null
-                    ? () => Navigator.push(
+                    ? () {
+                        final novel = cameraProvider.selectedNovel!;
+                        Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => NovelDetailScreen(
-                              novel: cameraProvider.selectedNovel!,
+                              novel: novel,
+                              onStartReading: () => Navigator.pop(context),
                             ),
                           ),
-                        )
+                        );
+                      }
                     : null,
               ),
 

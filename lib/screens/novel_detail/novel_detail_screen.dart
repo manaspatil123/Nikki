@@ -14,8 +14,10 @@ import 'package:nikki/providers/explanation_provider.dart';
 
 class NovelDetailScreen extends StatefulWidget {
   final Novel novel;
+  /// Called when the user taps "Start Reading" — should navigate to camera.
+  final VoidCallback? onStartReading;
 
-  const NovelDetailScreen({super.key, required this.novel});
+  const NovelDetailScreen({super.key, required this.novel, this.onStartReading});
 
   @override
   State<NovelDetailScreen> createState() => _NovelDetailScreenState();
@@ -24,26 +26,75 @@ class NovelDetailScreen extends StatefulWidget {
 class _NovelDetailScreenState extends State<NovelDetailScreen> {
   final WordRepository _wordRepo = WordRepository();
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final FocusNode _pinnedSearchFocus = FocusNode();
   List<WordEntry> _entries = [];
   String _searchQuery = '';
   bool _isLoading = true;
   bool _selectMode = false;
   final Set<int> _selectedIds = {};
+  double _scrollOffset = 0;
+  bool _searchActive = false;
+  bool _suppressSearchExit = false;
+
+  /// Scroll offset at which the pinned bar appears.
+  static const _stickyThreshold = 300.0;
 
   @override
   void initState() {
     super.initState();
-    _loadEntries();
+    _loadEntries(showLoading: true);
+    _scrollController.addListener(_onScroll);
+    _pinnedSearchFocus.addListener(_onSearchFocusChanged);
+  }
+
+  void _onSearchFocusChanged() {
+    final focused = _pinnedSearchFocus.hasFocus;
+    if (focused && !_searchActive) {
+      setState(() => _searchActive = true);
+    } else if (!focused && _searchQuery.isEmpty && _searchActive) {
+      setState(() => _searchActive = false);
+      // Scroll back to top when exiting search with empty query.
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(0,
+            duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      }
+    }
+  }
+
+  void _onScroll() {
+    final offset = _scrollController.offset;
+    if (offset != _scrollOffset) {
+      setState(() => _scrollOffset = offset);
+    }
+  }
+
+  void _onInlineSearchTap() {
+    // Scroll past the threshold so the pinned bar appears, then focus it.
+    final target = _stickyThreshold;
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    ).then((_) {
+      if (mounted) _pinnedSearchFocus.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _pinnedSearchFocus.removeListener(_onSearchFocusChanged);
+    _pinnedSearchFocus.dispose();
     super.dispose();
   }
 
-  Future<void> _loadEntries() async {
-    setState(() => _isLoading = true);
+  bool get _showStickyBar => _searchActive || _scrollOffset >= _stickyThreshold;
+
+  Future<void> _loadEntries({bool showLoading = false}) async {
+    if (showLoading) setState(() => _isLoading = true);
     if (_searchQuery.isNotEmpty) {
       _entries = await _wordRepo.searchEntries(widget.novel.id!, _searchQuery);
     } else {
@@ -96,6 +147,9 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
   }
 
   void _showWordSheet(WordEntry entry) {
+    // Dismiss keyboard before opening the sheet.
+    _pinnedSearchFocus.unfocus();
+
     final colors = NikkiColors.of(context);
     final explanationProvider = context.read<ExplanationProvider>();
     explanationProvider.showCachedExplanation(entry.selectedText, entry.explanationJson);
@@ -103,14 +157,14 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
       backgroundColor: colors.dialogBg,
+      barrierColor: Colors.black54,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) => HandleDraggableSheet(
-        initialFraction: 0.9,
-        maxFraction: 0.9,
+        initialFraction: 0.75,
+        maxFraction: 0.75,
         child: ExplanationSheet(
           mode: ExplanationSheetMode.novelDetail,
           onRemove: () {
@@ -133,6 +187,8 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = NikkiColors.of(context);
+    final sticky = _showStickyBar;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -141,7 +197,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top bar
+            // Top bar — back arrow + novel title (fades in) + select controls
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -152,14 +208,19 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      widget.novel.name,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: colors.textPrimary,
+                    child: AnimatedOpacity(
+                      opacity: sticky ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(
+                        widget.novel.name,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   // Select / action buttons
@@ -215,118 +276,278 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
               ),
             ),
 
-            // Novel info box
-            _NovelInfoBox(novel: widget.novel),
-
-            const SizedBox(height: 12),
-
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                style: TextStyle(color: colors.textPrimary, fontSize: 15),
-                cursorColor: CameraColors.teal,
-                decoration: InputDecoration(
-                  hintText: 'Search words...',
-                  hintStyle: TextStyle(color: colors.textSecondary),
-                  prefixIcon: Icon(Icons.search, color: colors.textSecondary),
-                  filled: true,
-                  fillColor: colors.inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.inputBorder),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: CameraColors.teal, width: 1.5),
-                  ),
-                  contentPadding: const EdgeInsets.only(left: 0, right: 12, top: 12, bottom: 12),
-                ),
-              ),
-            ),
-
-            // Selection count
-            if (_selectMode && _selectedIds.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 24, top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${_selectedIds.length} selected',
-                    style: const TextStyle(fontSize: 13, color: CameraColors.teal, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 8),
-
-            // "Words Learnt" heading
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-              child: Text(
-                'Words Learnt',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
-                  color: colors.textSecondary,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            // Word list
+            // Scrollable content + pinned bar overlay
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator(color: CameraColors.teal))
-                  : _entries.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No words saved yet.\nStart reading to add words.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 15, color: colors.textSecondary),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _entries.length,
-                          itemBuilder: (context, index) {
-                            final entry = _entries[index];
-                            final isSelected = _selectedIds.contains(entry.id);
-                            final showDateHeader = index == 0 ||
-                                !DateSectionHeader.sameDay(
-                                    _entries[index - 1].createdAt, entry.createdAt);
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (showDateHeader)
-                                  DateSectionHeader(timestamp: entry.createdAt),
-                                _WordItem(
-                                  entry: entry,
-                                  selectMode: _selectMode,
-                                  isSelected: isSelected,
-                                  onTap: _selectMode
-                                      ? () => _toggleSelection(entry.id!)
-                                      : () => _showWordSheet(entry),
-                                  onDelete: () {
-                                    _wordRepo.delete(entry.id!);
-                                    _loadEntries();
-                                  },
-                                  onRemoveFromNovel: () {
-                                    _wordRepo.removeFromNovel([entry.id!]);
-                                    _loadEntries();
-                                  },
+                  : Stack(
+                      children: [
+                        CustomScrollView(
+                      controller: _scrollController,
+                      slivers: [
+                        // Header slivers — hidden during active search
+                        if (!_searchActive) ...[
+                          // "You're reading" label
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 24, right: 16, bottom: 12),
+                              child: Text(
+                                "You're reading",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: colors.textPrimary,
                                 ),
-                              ],
-                            );
-                          },
+                              ),
+                            ),
+                          ),
+
+                          // Novel info card
+                          SliverToBoxAdapter(
+                            child: _NovelInfoBox(novel: widget.novel),
+                          ),
+
+                          // Start Reading button (full width, scrolls away)
+                          if (widget.onStartReading != null)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                                child: GestureDetector(
+                                  onTap: widget.onStartReading,
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: CameraColors.darkTeal,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        'Start Reading',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          // Search bar placeholder — tapping scrolls up and focuses the pinned bar
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              child: GestureDetector(
+                                onTap: _onInlineSearchTap,
+                                child: Container(
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: colors.inputFill,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: colors.inputBorder),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const SizedBox(width: 12),
+                                      Icon(Icons.search, color: colors.textSecondary),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Search words...',
+                                        style: TextStyle(color: colors.textSecondary, fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // "Words Learnt" heading
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 8, 24, 4),
+                              child: Text(
+                                'Words Learnt',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1,
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // Selection count
+                        if (_selectMode && _selectedIds.isNotEmpty)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 24, top: 8),
+                              child: Text(
+                                '${_selectedIds.length} selected',
+                                style: const TextStyle(fontSize: 13, color: CameraColors.teal, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+
+                        // Word list
+                        if (_entries.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Text(
+                                _searchActive
+                                    ? 'No results found.'
+                                    : 'No words saved yet.\nStart reading to add words.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 15, color: colors.textSecondary),
+                              ),
+                            ),
+                          )
+                        else
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final entry = _entries[index];
+                                final isSelected = _selectedIds.contains(entry.id);
+                                final showDateHeader = index == 0 ||
+                                    !DateSectionHeader.sameDay(
+                                        _entries[index - 1].createdAt, entry.createdAt);
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (showDateHeader)
+                                      DateSectionHeader(timestamp: entry.createdAt),
+                                    _WordItem(
+                                      entry: entry,
+                                      selectMode: _selectMode,
+                                      isSelected: isSelected,
+                                      onTap: _selectMode
+                                          ? () => _toggleSelection(entry.id!)
+                                          : () => _showWordSheet(entry),
+                                      onDelete: () {
+                                        _wordRepo.delete(entry.id!);
+                                        _loadEntries();
+                                      },
+                                      onRemoveFromNovel: () {
+                                        _wordRepo.removeFromNovel([entry.id!]);
+                                        _loadEntries();
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
+                              childCount: _entries.length,
+                            ),
+                          ),
+                      ],
+                    ),
+                        // Pinned search + Read bar overlay
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: IgnorePointer(
+                            ignoring: !sticky,
+                            child: AnimatedOpacity(
+                              opacity: sticky ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Container(
+                                color: colors.background,
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: SizedBox(
+                                        height: 44,
+                                        child: TextField(
+                                          controller: _searchController,
+                                          focusNode: _pinnedSearchFocus,
+                                          onChanged: _onSearchChanged,
+                                          scribbleEnabled: false,
+                                          style: TextStyle(color: colors.textPrimary, fontSize: 15),
+                                          cursorColor: CameraColors.teal,
+                                          decoration: InputDecoration(
+                                            hintText: 'Search words...',
+                                            hintStyle: TextStyle(color: colors.textSecondary),
+                                            prefixIcon: Icon(Icons.search, color: colors.textSecondary, size: 20),
+                                            suffixIcon: _searchQuery.isNotEmpty
+                                                ? GestureDetector(
+                                                    onTap: () {
+                                                      _searchController.clear();
+                                                      _onSearchChanged('');
+                                                      _pinnedSearchFocus.unfocus();
+                                                    },
+                                                    child: Container(
+                                                      width: 20,
+                                                      height: 20,
+                                                      margin: const EdgeInsets.all(10),
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        color: colors.textSecondary.withOpacity(0.3),
+                                                      ),
+                                                      child: Icon(Icons.close, size: 14, color: colors.textPrimary),
+                                                    ),
+                                                  )
+                                                : null,
+                                            filled: true,
+                                            fillColor: colors.inputFill,
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide.none,
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: colors.inputBorder),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: const BorderSide(color: CameraColors.teal, width: 1.5),
+                                            ),
+                                            contentPadding: const EdgeInsets.only(left: 0, right: 12, top: 0, bottom: 0),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (widget.onStartReading != null) ...[
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 1,
+                                        child: GestureDetector(
+                                          onTap: widget.onStartReading,
+                                          child: Container(
+                                            height: 44,
+                                            decoration: BoxDecoration(
+                                              color: CameraColors.darkTeal,
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: const Center(
+                                              child: Text(
+                                                'Read',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -359,13 +580,22 @@ class _NovelInfoBox extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              novel.name,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: colors.textPrimary,
+              ),
+            ),
             if (novel.description.isNotEmpty) ...[
+              const SizedBox(height: 6),
               Text(
                 novel.description,
                 style: TextStyle(fontSize: 14, color: colors.textPrimary),
               ),
-              const SizedBox(height: 10),
             ],
+            const SizedBox(height: 10),
             Row(
               children: [
                 const Icon(Icons.language, size: 14, color: CameraColors.teal),

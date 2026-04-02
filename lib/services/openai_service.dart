@@ -24,11 +24,18 @@ class OpenAiService {
   }) async {
     if (apiKey.isEmpty) throw Exception('API key not set. Add your OpenAI key in Settings.');
 
-    final systemPrompt = 'You are a language tutor. The user is reading a novel in $sourceLanguage and learning vocabulary. Respond ONLY with valid JSON, no extra text.';
+    final systemPrompt = '''You are an expert $sourceLanguage language tutor helping a learner who is reading a novel in $sourceLanguage. The learner's native language is $targetLanguage. Respond ONLY with valid JSON, no extra text.
+
+CRITICAL RULES:
+- All example sentences MUST be written in $sourceLanguage using the word/phrase being explained.
+- NEVER write example sentences in $targetLanguage. The learner needs to see real $sourceLanguage usage.
+- For Japanese: add furigana in parentheses after every kanji. Format: 漢字(かんじ)を読(よ)む. Every single kanji must have furigana, no exceptions.
+- Explanations (meaning, context, breakdown, formality) should be in $targetLanguage so the learner understands them.
+- Examples must be natural, everyday sentences that a native speaker would use.''';
 
     final userPrompt = StringBuffer()
       ..writeln('Selected text: "$selectedText"')
-      ..writeln('Surrounding context: "$surroundingContext"')
+      ..writeln('Surrounding context from the novel: "$surroundingContext"')
       ..writeln('Source language: $sourceLanguage')
       ..writeln('Target language: $targetLanguage')
       ..writeln()
@@ -36,31 +43,31 @@ class OpenAiService {
       ..writeln('{');
 
     if (enabledCategories.contains(ExplanationCategory.meaning)) {
-      userPrompt.writeln('  "meaning": "definition in $targetLanguage",');
+      userPrompt.writeln('  "meaning": "clear definition in $targetLanguage",');
     }
     if (enabledCategories.contains(ExplanationCategory.reading)) {
-      userPrompt.writeln('  "reading": "pronunciation/furigana/romanization",');
+      userPrompt.writeln('  "reading": "full furigana reading (e.g. かんじ for 漢字)",');
     }
     if (enabledCategories.contains(ExplanationCategory.context)) {
-      userPrompt.writeln('  "context": "what it means in this specific context",');
+      userPrompt.writeln('  "context": "what it specifically means in this novel passage, explained in $targetLanguage",');
     }
     if (enabledCategories.contains(ExplanationCategory.examples)) {
-      userPrompt.writeln('  "examples": ["example sentence 1", "example sentence 2", "example sentence 3"],');
+      userPrompt.writeln('  "examples": ["$sourceLanguage sentence with furigana on all kanji", "another $sourceLanguage sentence", "third $sourceLanguage sentence"] — each example MUST be in $sourceLanguage with furigana, followed by $targetLanguage translation in parentheses,');
     }
     if (enabledCategories.contains(ExplanationCategory.breakdown)) {
-      userPrompt.writeln('  "breakdown": "morphological breakdown of the word",');
+      userPrompt.writeln('  "breakdown": "morphological breakdown explained in $targetLanguage, showing each component with furigana",');
     }
     if (enabledCategories.contains(ExplanationCategory.formality)) {
-      userPrompt.writeln('  "formality": "register/formality level",');
+      userPrompt.writeln('  "formality": "register/politeness level explained in $targetLanguage",');
     }
     if (enabledCategories.contains(ExplanationCategory.similarWords)) {
-      userPrompt.writeln('  "similar_words": [{"word": "...", "reading": "...", "brief": "one-line difference"}]');
+      userPrompt.writeln('  "similar_words": [{"word": "...", "reading": "furigana reading", "brief": "one-line difference in $targetLanguage"}]');
     }
 
     userPrompt
       ..writeln('}')
       ..writeln()
-      ..writeln('Be concise. Use $targetLanguage for all explanations. Include 3-5 similar words if requested.');
+      ..writeln('REMEMBER: Example sentences must be in $sourceLanguage with furigana on every kanji, not in $targetLanguage. Include a $targetLanguage translation in parentheses after each example. Include 3-5 similar words if requested. Be concise.');
 
     final body = jsonEncode({
       'model': 'gpt-4o-mini',
