@@ -6,6 +6,14 @@ import 'package:nikki/models/explanation_category.dart';
 class OpenAiService {
   static const _baseUrl = 'https://api.openai.com/v1/chat/completions';
 
+  http.Client? _activeClient;
+
+  /// Cancel any in-flight HTTP request.
+  void cancelPending() {
+    _activeClient?.close();
+    _activeClient = null;
+  }
+
   Future<Explanation> getExplanation({
     required String apiKey,
     required String selectedText,
@@ -63,24 +71,31 @@ class OpenAiService {
       'response_format': {'type': 'json_object'},
     });
 
-    final response = await http.post(
-      Uri.parse(_baseUrl),
-      headers: {
-        'Authorization': 'Bearer $apiKey',
-        'Content-Type': 'application/json',
-      },
-      body: body,
-    );
+    final client = http.Client();
+    _activeClient = client;
+    try {
+      final response = await client.post(
+        Uri.parse(_baseUrl),
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
 
-    if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error']?['message'] ?? 'API request failed (${response.statusCode})');
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error']?['message'] ?? 'API request failed (${response.statusCode})');
+      }
+
+      final data = jsonDecode(response.body);
+      final content = data['choices'][0]['message']['content'] as String;
+      final json = jsonDecode(content) as Map<String, dynamic>;
+      return Explanation.fromJson(json);
+    } finally {
+      if (_activeClient == client) _activeClient = null;
+      client.close();
     }
-
-    final data = jsonDecode(response.body);
-    final content = data['choices'][0]['message']['content'] as String;
-    final json = jsonDecode(content) as Map<String, dynamic>;
-    return Explanation.fromJson(json);
   }
 
   Future<ComparisonResult> getComparison({
@@ -121,23 +136,30 @@ Be concise. Use $targetLanguage for explanations.''';
       'response_format': {'type': 'json_object'},
     });
 
-    final response = await http.post(
-      Uri.parse(_baseUrl),
-      headers: {
-        'Authorization': 'Bearer $apiKey',
-        'Content-Type': 'application/json',
-      },
-      body: body,
-    );
+    final client = http.Client();
+    _activeClient = client;
+    try {
+      final response = await client.post(
+        Uri.parse(_baseUrl),
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
 
-    if (response.statusCode != 200) {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error']?['message'] ?? 'API request failed (${response.statusCode})');
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error']?['message'] ?? 'API request failed (${response.statusCode})');
+      }
+
+      final data = jsonDecode(response.body);
+      final content = data['choices'][0]['message']['content'] as String;
+      final json = jsonDecode(content) as Map<String, dynamic>;
+      return ComparisonResult.fromJson(json);
+    } finally {
+      if (_activeClient == client) _activeClient = null;
+      client.close();
     }
-
-    final data = jsonDecode(response.body);
-    final content = data['choices'][0]['message']['content'] as String;
-    final json = jsonDecode(content) as Map<String, dynamic>;
-    return ComparisonResult.fromJson(json);
   }
 }

@@ -474,21 +474,32 @@ class _ComparisonContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = NikkiColors.of(context);
+    // Standalone comparison (opened from history) has no parent explanation.
+    final isStandalone = provider.explanation == null;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: provider.dismissComparison,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.arrow_back, size: 20, color: colors.textSecondary),
-                const SizedBox(width: 4),
-                Text('Back', style: TextStyle(fontSize: 14, color: colors.textSecondary)),
-              ],
-            ),
+          Row(
+            children: [
+              if (!isStandalone)
+                GestureDetector(
+                  onTap: provider.dismissComparison,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.arrow_back, size: 20, color: colors.textSecondary),
+                      const SizedBox(width: 4),
+                      Text('Back', style: TextStyle(fontSize: 14, color: colors.textSecondary)),
+                    ],
+                  ),
+                ),
+              const Spacer(),
+              if (provider.comparison != null)
+                _ComparisonSaveButton(provider: provider),
+            ],
           ),
           const SizedBox(height: 16),
           if (provider.isComparisonLoading)
@@ -498,6 +509,38 @@ class _ComparisonContent extends StatelessWidget {
           else if (provider.comparison != null)
             _ComparisonBody(comparison: provider.comparison!),
         ],
+      ),
+    );
+  }
+}
+
+class _ComparisonSaveButton extends StatelessWidget {
+  final ExplanationProvider provider;
+
+  const _ComparisonSaveButton({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NikkiColors.of(context);
+    final saved = provider.isComparisonSaved;
+
+    return GestureDetector(
+      onTap: saved ? null : () => provider.saveComparisonToHistory(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        decoration: BoxDecoration(
+          color: saved ? CameraColors.darkTeal : colors.card,
+          border: Border.all(color: CameraColors.darkTeal, width: 1.5),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Text(
+          saved ? 'Saved' : 'Save',
+          style: TextStyle(
+            color: saved ? Colors.white : colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

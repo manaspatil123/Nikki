@@ -15,6 +15,9 @@ class TextOverlay extends StatefulWidget {
   final int imageHeight;
   final int rotationDegrees;
   final String? imagePath;
+  /// Optional [TransformationController] from the parent [InteractiveViewer].
+  /// Used to keep the magnifier at a constant screen size regardless of zoom.
+  final TransformationController? transformController;
   /// Called when the user finishes selecting text.
   /// [selectionNormalizedY] is the selection center's Y position (0–1) relative to the overlay.
   final void Function(String selectedText, String blockText, double selectionNormalizedY) onSelectionComplete;
@@ -27,6 +30,7 @@ class TextOverlay extends StatefulWidget {
     required this.imageHeight,
     required this.rotationDegrees,
     this.imagePath,
+    this.transformController,
     required this.onSelectionComplete,
   });
 
@@ -277,9 +281,30 @@ class _TextOverlayState extends State<TextOverlay> {
   ) {
     if (widget.imagePath == null) return const SizedBox.shrink();
 
-    // Loupe positioned above the finger.
-    final loupeLeft = touchLocal.dx - _kLoupeRadius;
-    final loupeTop = touchLocal.dy - _kLoupeGap - _kLoupeDiameter;
+    // Counter-scale to keep the loupe at a constant screen size when the
+    // parent InteractiveViewer is zoomed in.
+    final matrix =
+        widget.transformController?.value ?? Matrix4.identity();
+    final viewerScale = matrix.getMaxScaleOnAxis();
+    final loupeDiameter = _kLoupeDiameter / viewerScale;
+    final loupeRadius = loupeDiameter / 2;
+    final loupeGap = _kLoupeGap / viewerScale;
+    // Use the base magnification — the InteractiveViewer already scales
+    // everything by viewerScale, so _kLoupeMag gives 2× relative to the
+    // *current* zoomed view, which is what the user expects.
+    const mag = _kLoupeMag;
+
+    // Position above the finger by default; flip below when the loupe
+    // would be in the top ~30% of the visible screen.
+    final loupeLeft = touchLocal.dx - loupeRadius;
+    final aboveTop = touchLocal.dy - loupeGap - loupeDiameter;
+    // Convert the touch point to screen coordinates and check if it's
+    // in the upper portion of the viewport.
+    final screenTouchY =
+        MatrixUtils.transformPoint(matrix, Offset(0, touchLocal.dy)).dy;
+    final loupeTop = screenTouchY > overlayHeight * 0.3
+        ? aboveTop
+        : touchLocal.dy + loupeGap;
 
     // The image is displayed with BoxFit.cover at (overlayWidth x overlayHeight).
     // We render a second copy of the image at the same cover size * mag,
@@ -310,27 +335,27 @@ class _TextOverlayState extends State<TextOverlay> {
     final imgY = touchLocal.dy + coverOffsetY;
 
     // Scale the cover image by mag. The touch point in the scaled image:
-    final scaledImgX = imgX * _kLoupeMag;
-    final scaledImgY = imgY * _kLoupeMag;
+    final scaledImgX = imgX * mag;
+    final scaledImgY = imgY * mag;
 
-    // Translate so that (scaledImgX, scaledImgY) sits at loupe center (R, R).
-    final translateX = _kLoupeRadius - scaledImgX;
-    final translateY = _kLoupeRadius - scaledImgY;
+    // Translate so that (scaledImgX, scaledImgY) sits at loupe center.
+    final translateX = loupeRadius - scaledImgX;
+    final translateY = loupeRadius - scaledImgY;
 
     return Positioned(
       left: loupeLeft,
       top: loupeTop,
       child: IgnorePointer(
         child: Container(
-          width: _kLoupeDiameter,
-          height: _kLoupeDiameter,
+          width: loupeDiameter,
+          height: loupeDiameter,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.25),
-                blurRadius: 8,
-                spreadRadius: 1,
+                blurRadius: 8 / viewerScale,
+                spreadRadius: 1 / viewerScale,
               ),
             ],
           ),
@@ -341,8 +366,8 @@ class _TextOverlayState extends State<TextOverlay> {
                 Positioned(
                   left: translateX,
                   top: translateY,
-                  width: coverW * _kLoupeMag,
-                  height: coverH * _kLoupeMag,
+                  width: coverW * mag,
+                  height: coverH * mag,
                   child: Image.file(
                     File(widget.imagePath!),
                     fit: BoxFit.fill,
@@ -353,16 +378,14 @@ class _TextOverlayState extends State<TextOverlay> {
                 Positioned(
                   left: translateX,
                   top: translateY,
-                  width: coverW * _kLoupeMag,
-                  height: coverH * _kLoupeMag,
+                  width: coverW * mag,
+                  height: coverH * mag,
                   child: CustomPaint(
-                    size: Size(coverW * _kLoupeMag, coverH * _kLoupeMag),
+                    size: Size(coverW * mag, coverH * mag),
                     painter: _LoupeSelectionPainter(
                       blocks: widget.blocks,
                       selectedGlobal: _dragSelectedGlobalIndices,
-                      // The image pixels map to the magnified cover area.
-                      // scale: how many magnified-cover pixels per image pixel.
-                      scale: (coverW * _kLoupeMag) / widget.imageWidth,
+                      scale: (coverW * mag) / widget.imageWidth,
                     ),
                   ),
                 ),
@@ -373,7 +396,7 @@ class _TextOverlayState extends State<TextOverlay> {
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
+                        width: 1.5 / viewerScale,
                       ),
                     ),
                   ),
@@ -427,7 +450,7 @@ class _TextOverlayState extends State<TextOverlay> {
                     GestureRecognizerFactoryWithHandlers<
                         LongPressGestureRecognizer>(
                   () => LongPressGestureRecognizer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 350),
                   ),
                   (instance) {
                     instance.onLongPressStart = (details) {

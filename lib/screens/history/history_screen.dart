@@ -550,6 +550,9 @@ class _WordListItemState extends State<_WordListItem>
   String _getBriefMeaning(String json) {
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
+      if (map['is_comparison'] == true) {
+        return map['difference'] as String? ?? '';
+      }
       return map['meaning'] as String? ?? map['reading'] as String? ?? '';
     } catch (_) {
       return '';

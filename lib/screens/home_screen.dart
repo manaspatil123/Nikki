@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:nikki/providers/camera_provider.dart';
 import 'package:nikki/screens/camera/camera_screen.dart';
 import 'package:nikki/screens/read_list/read_list_screen.dart';
 import 'package:nikki/screens/settings/settings_screen.dart';
@@ -35,16 +37,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PageView(
-      controller: _pageController,
-      children: [
-        CameraScreen(onBack: () => _animateTo(1)),
-        ReadListScreen(
-          onCamera: () => _animateTo(0),
-          onSettings: () => _animateTo(2),
-        ),
-        SettingsScreen(onBack: () => _animateTo(1)),
-      ],
+    return Consumer<CameraProvider>(
+      builder: (context, cameraProvider, _) {
+        // Disable swiping entirely when camera has captured a photo
+        // (prevents accidental swipe-back while zooming/selecting text).
+        // Otherwise use clamping physics to prevent overscroll bounce
+        // at the edges (no black area past the first/last page).
+        final physics = cameraProvider.isCaptured
+            ? const NeverScrollableScrollPhysics()
+            : const ClampingScrollPhysics();
+
+        return PageView(
+          controller: _pageController,
+          physics: physics,
+          children: [
+            CameraScreen(onBack: () => _animateTo(1)),
+            ReadListScreen(
+              onCamera: () => _animateTo(0),
+              onSettings: () => _animateTo(2),
+            ),
+            SettingsScreen(onBack: () => _animateTo(1)),
+          ],
+        );
+      },
     );
   }
 }

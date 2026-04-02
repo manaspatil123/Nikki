@@ -55,6 +55,11 @@ class WordRepository {
     await db.update('word_entries', {'notes': notes}, where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<void> updateExplanationJson(int id, String explanationJson) async {
+    final db = await NikkiDatabase.database;
+    await db.update('word_entries', {'explanationJson': explanationJson}, where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> delete(int id) async {
     final db = await NikkiDatabase.database;
     await db.delete('word_entries', where: 'id = ?', whereArgs: [id]);
@@ -77,6 +82,18 @@ class WordRepository {
     final db = await NikkiDatabase.database;
     final placeholders = ids.map((_) => '?').join(',');
     await db.delete('word_entries', where: 'id IN ($placeholders)', whereArgs: ids);
+  }
+
+  Future<void> removeFromNovel(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final db = await NikkiDatabase.database;
+    final placeholders = ids.map((_) => '?').join(',');
+    await db.update(
+      'word_entries',
+      {'novelId': null},
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
   }
 
   Future<void> assignToNovel(List<int> ids, int novelId) async {

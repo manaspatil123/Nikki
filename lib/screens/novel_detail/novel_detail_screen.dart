@@ -27,6 +27,8 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
   List<WordEntry> _entries = [];
   String _searchQuery = '';
   bool _isLoading = true;
+  bool _selectMode = false;
+  final Set<int> _selectedIds = {};
 
   @override
   void initState() {
@@ -55,6 +57,44 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     _loadEntries();
   }
 
+  void _enterSelectMode() {
+    setState(() {
+      _selectMode = true;
+      _selectedIds.clear();
+    });
+  }
+
+  void _exitSelectMode() {
+    setState(() {
+      _selectMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _deleteSelected() {
+    if (_selectedIds.isEmpty) return;
+    _wordRepo.deleteMultiple(_selectedIds.toList());
+    _exitSelectMode();
+    _loadEntries();
+  }
+
+  void _removeSelectedFromNovel() {
+    if (_selectedIds.isEmpty) return;
+    _wordRepo.removeFromNovel(_selectedIds.toList());
+    _exitSelectMode();
+    _loadEntries();
+  }
+
   void _showWordSheet(WordEntry entry) {
     final colors = NikkiColors.of(context);
     final explanationProvider = context.read<ExplanationProvider>();
@@ -75,7 +115,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
           mode: ExplanationSheetMode.novelDetail,
           onRemove: () {
             _wordRepo.delete(entry.id!);
-            Navigator.of(ctx).pop();
+            // Don't pop here — _RemoveButton already pops the sheet.
             _loadEntries();
           },
           notesWidget: _NotesArea(
@@ -84,7 +124,10 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
           ),
         ),
       ),
-    );
+    ).whenComplete(() {
+      // Reload entries so notes changes are reflected in the list.
+      if (mounted) _loadEntries();
+    });
   }
 
   @override
@@ -119,6 +162,55 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  // Select / action buttons
+                  if (_selectMode) ...[
+                    PopupMenuButton<String>(
+                      enabled: _selectedIds.isNotEmpty,
+                      color: colors.card,
+                      offset: const Offset(0, 40),
+                      constraints: const BoxConstraints(minWidth: 180),
+                      onSelected: (value) {
+                        if (value == 'remove_from_novel') {
+                          _removeSelectedFromNovel();
+                        } else if (value == 'delete') {
+                          _deleteSelected();
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'remove_from_novel',
+                          child: Text('Remove from novel', style: TextStyle(fontSize: 14, color: CameraColors.darkTeal, fontWeight: FontWeight.w500)),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete', style: TextStyle(fontSize: 14, color: CameraColors.dangerBorder, fontWeight: FontWeight.w500)),
+                        ),
+                      ],
+                      child: Icon(
+                        Icons.more_horiz,
+                        color: _selectedIds.isNotEmpty ? colors.textSecondary : colors.textSecondary.withOpacity(0.3),
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: _exitSelectMode,
+                      child: Icon(Icons.close, color: colors.textSecondary, size: 24),
+                    ),
+                  ] else
+                    GestureDetector(
+                      onTap: _entries.isNotEmpty ? _enterSelectMode : null,
+                      child: Text(
+                        'Select',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: _entries.isNotEmpty
+                              ? CameraColors.teal
+                              : CameraColors.teal.withOpacity(0.3),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -159,6 +251,19 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
               ),
             ),
 
+            // Selection count
+            if (_selectMode && _selectedIds.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 24, top: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${_selectedIds.length} selected',
+                    style: const TextStyle(fontSize: 13, color: CameraColors.teal, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+
             const SizedBox(height: 8),
 
             // "Words Learnt" heading
@@ -193,6 +298,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                           itemCount: _entries.length,
                           itemBuilder: (context, index) {
                             final entry = _entries[index];
+                            final isSelected = _selectedIds.contains(entry.id);
                             final showDateHeader = index == 0 ||
                                 !DateSectionHeader.sameDay(
                                     _entries[index - 1].createdAt, entry.createdAt);
@@ -203,7 +309,19 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                                   DateSectionHeader(timestamp: entry.createdAt),
                                 _WordItem(
                                   entry: entry,
-                                  onTap: () => _showWordSheet(entry),
+                                  selectMode: _selectMode,
+                                  isSelected: isSelected,
+                                  onTap: _selectMode
+                                      ? () => _toggleSelection(entry.id!)
+                                      : () => _showWordSheet(entry),
+                                  onDelete: () {
+                                    _wordRepo.delete(entry.id!);
+                                    _loadEntries();
+                                  },
+                                  onRemoveFromNovel: () {
+                                    _wordRepo.removeFromNovel([entry.id!]);
+                                    _loadEntries();
+                                  },
                                 ),
                               ],
                             );
@@ -280,59 +398,221 @@ class _NovelInfoBox extends StatelessWidget {
   }
 }
 
-// ── Word list item ──
+// ── Word list item with swipe actions + selection support ──
 
-class _WordItem extends StatelessWidget {
+class _WordItem extends StatefulWidget {
   final WordEntry entry;
+  final bool selectMode;
+  final bool isSelected;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onRemoveFromNovel;
 
-  const _WordItem({required this.entry, required this.onTap});
+  const _WordItem({
+    required this.entry,
+    required this.selectMode,
+    required this.isSelected,
+    required this.onTap,
+    required this.onDelete,
+    required this.onRemoveFromNovel,
+  });
+
+  @override
+  State<_WordItem> createState() => _WordItemState();
+}
+
+class _WordItemState extends State<_WordItem>
+    with SingleTickerProviderStateMixin {
+  static const _actionWidth = 56.0;
+  static const _actionCount = 2;
+  static const _revealWidth = _actionWidth * _actionCount + 12;
+
+  late AnimationController _animController;
+  double _dragOffset = 0;
+  bool _isOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addListener(() {
+        setState(() => _dragOffset = _animController.value * -_revealWidth);
+      });
+  }
+
+  @override
+  void didUpdateWidget(covariant _WordItem old) {
+    super.didUpdateWidget(old);
+    if (widget.selectMode && !old.selectMode && _isOpen) {
+      _close();
+    }
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (widget.selectMode) return;
+    setState(() {
+      _dragOffset = (_dragOffset + details.delta.dx).clamp(-_revealWidth, 0.0);
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (widget.selectMode) return;
+    final velocity = details.velocity.pixelsPerSecond.dx;
+    if (velocity < -300 || _dragOffset < -_revealWidth / 2) {
+      _animController.value = _dragOffset / -_revealWidth;
+      _animController.animateTo(1.0, curve: Curves.easeOut);
+      _isOpen = true;
+    } else {
+      _animController.value = _dragOffset / -_revealWidth;
+      _animController.animateTo(0.0, curve: Curves.easeOut);
+      _isOpen = false;
+    }
+  }
+
+  void _close() {
+    _animController.animateTo(0.0, curve: Curves.easeOut);
+    _isOpen = false;
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = NikkiColors.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: SizedBox(
+        height: 70,
+        child: Stack(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.selectedText,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: colors.textPrimary,
+            // Swipe action buttons (hidden in select mode)
+            if (!widget.selectMode)
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        _close();
+                        widget.onRemoveFromNovel();
+                      },
+                      child: Container(
+                        width: _actionWidth,
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        decoration: BoxDecoration(
+                          color: CameraColors.teal,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.link_off, color: Colors.white, size: 24),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getBriefMeaning(entry.explanationJson),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 14, color: colors.textSecondary),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () {
+                        _close();
+                        widget.onDelete();
+                      },
+                      child: Container(
+                        width: _actionWidth,
+                        margin: const EdgeInsets.symmetric(vertical: 2),
+                        decoration: BoxDecoration(
+                          color: CameraColors.dangerBorder,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.delete_outline, color: Colors.white, size: 24),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (entry.notes.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Icon(Icons.sticky_note_2_outlined, size: 16, color: colors.divider),
+
+            // Foreground card
+            Transform.translate(
+              offset: Offset(widget.selectMode ? 0 : _dragOffset, 0),
+              child: GestureDetector(
+                onTap: _isOpen ? _close : widget.onTap,
+                onHorizontalDragUpdate: _onHorizontalDragUpdate,
+                onHorizontalDragEnd: _onHorizontalDragEnd,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      // Tick checkbox (select mode only)
+                      if (widget.selectMode) ...[
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: widget.isSelected ? CameraColors.teal : Colors.transparent,
+                            border: Border.all(
+                              color: widget.isSelected ? CameraColors.teal : colors.textSecondary,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: widget.isSelected
+                              ? const Icon(Icons.check, size: 16, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              widget.entry.selectedText,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _getBriefMeaning(widget.entry.explanationJson),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: colors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (widget.entry.notes.isNotEmpty && !widget.selectMode)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Icon(Icons.sticky_note_2_outlined, size: 16, color: colors.divider),
+                        ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatDate(widget.entry.createdAt),
+                        style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            const SizedBox(width: 8),
-            Text(
-              _formatDate(entry.createdAt),
-              style: TextStyle(fontSize: 12, color: colors.textSecondary),
             ),
           ],
         ),
@@ -343,6 +623,9 @@ class _WordItem extends StatelessWidget {
   String _getBriefMeaning(String json) {
     try {
       final map = jsonDecode(json) as Map<String, dynamic>;
+      if (map['is_comparison'] == true) {
+        return map['difference'] as String? ?? '';
+      }
       return map['meaning'] as String? ?? map['reading'] as String? ?? '';
     } catch (_) {
       return '';

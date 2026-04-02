@@ -20,6 +20,7 @@ import 'package:nikki/widgets/explanation_sheet.dart';
 import 'package:nikki/widgets/handle_draggable_sheet.dart';
 import 'package:nikki/widgets/text_overlay.dart';
 
+import 'package:nikki/screens/novel_detail/novel_detail_screen.dart';
 import 'package:nikki/screens/camera/widgets/camera_permission_view.dart';
 import 'package:nikki/screens/camera/widgets/camera_preview_layer.dart';
 import 'package:nikki/screens/camera/widgets/camera_top_bar.dart';
@@ -308,6 +309,20 @@ class _CameraScreenState extends State<CameraScreen>
       _animatePanTo(targetPanY);
     }
 
+    // Always trigger a new explanation, even if the sheet is already open.
+    final explanationProvider = context.read<ExplanationProvider>();
+    final selectedWord = cameraProvider.selectedWord;
+    if (selectedWord != null) {
+      explanationProvider.explain(
+        selectedText: selectedWord.text,
+        surroundingContext: selectedWord.surroundingContext,
+        sourceLanguage: cameraProvider.sourceLanguage,
+        targetLanguage: cameraProvider.targetLanguage,
+        novelId: cameraProvider.selectedNovel?.id,
+        dontSave: cameraProvider.dontSave,
+      );
+    }
+
     _showExplanationSheet();
   }
 
@@ -318,13 +333,22 @@ class _CameraScreenState extends State<CameraScreen>
       duration: const Duration(milliseconds: 300),
     );
     final startY = _currentPanY;
-    final animation = Tween<double>(begin: startY, end: targetY).animate(
+    // Capture the current transform so we preserve zoom + X translation.
+    final baseMatrix = Matrix4.copy(_transformController.value);
+    final baseTransY = baseMatrix.getTranslation().y;
+    final deltaY = targetY - startY;
+    final animation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _panAnimController!, curve: Curves.easeInOut),
     );
     animation.addListener(() {
-      _currentPanY = animation.value;
-      _transformController.value = Matrix4.identity()
-        ..setTranslationRaw(0, _currentPanY, 0);
+      _currentPanY = startY + deltaY * animation.value;
+      final m = Matrix4.copy(baseMatrix);
+      m.setTranslationRaw(
+        m.getTranslation().x,
+        baseTransY + deltaY * animation.value,
+        0,
+      );
+      _transformController.value = m;
     });
     _panAnimController!.forward();
   }
@@ -337,24 +361,6 @@ class _CameraScreenState extends State<CameraScreen>
   void _showExplanationSheet() {
     if (_isShowingExplanation) return;
     _isShowingExplanation = true;
-
-    final cameraProvider = context.read<CameraProvider>();
-    final explanationProvider = context.read<ExplanationProvider>();
-    final selectedWord = cameraProvider.selectedWord;
-
-    if (selectedWord == null) {
-      _isShowingExplanation = false;
-      return;
-    }
-
-    explanationProvider.explain(
-      selectedText: selectedWord.text,
-      surroundingContext: selectedWord.surroundingContext,
-      sourceLanguage: cameraProvider.sourceLanguage,
-      targetLanguage: cameraProvider.targetLanguage,
-      novelId: cameraProvider.selectedNovel?.id,
-      dontSave: cameraProvider.dontSave,
-    );
 
     final colors = NikkiColors.of(context);
     showModalBottomSheet<void>(
@@ -441,6 +447,7 @@ class _CameraScreenState extends State<CameraScreen>
                           imageHeight: cameraProvider.imageHeight,
                           rotationDegrees: 0,
                           imagePath: cameraProvider.capturedImagePath,
+                          transformController: _transformController,
                           onSelectionComplete: (text, block, y) => _onTextSelected(text, block, y),
                         ),
                       ],
@@ -457,6 +464,16 @@ class _CameraScreenState extends State<CameraScreen>
                 onLanguageChanged: (lang) =>
                     cameraProvider.setSourceLanguage(lang),
                 onArrowTap: widget.onBack ?? () => Navigator.pop(context),
+                onNovelTap: cameraProvider.selectedNovel != null
+                    ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NovelDetailScreen(
+                              novel: cameraProvider.selectedNovel!,
+                            ),
+                          ),
+                        )
+                    : null,
               ),
 
               // Bottom bar

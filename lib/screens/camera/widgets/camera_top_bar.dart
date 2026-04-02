@@ -12,6 +12,7 @@ class CameraTopBar extends StatelessWidget {
   final Novel? selectedNovel;
   final ValueChanged<String> onLanguageChanged;
   final VoidCallback onArrowTap;
+  final VoidCallback? onNovelTap;
 
   const CameraTopBar({
     super.key,
@@ -19,6 +20,7 @@ class CameraTopBar extends StatelessWidget {
     required this.selectedNovel,
     required this.onLanguageChanged,
     required this.onArrowTap,
+    this.onNovelTap,
   });
 
   @override
@@ -46,17 +48,20 @@ class CameraTopBar extends StatelessWidget {
                     sourceLanguage: sourceLanguage,
                     onLanguageChanged: onLanguageChanged,
                   ),
-                  // Novel name (or empty)
+                  // Novel name (tappable → navigate to novel detail)
                   Expanded(
-                    child: Text(
-                      selectedNovel?.name ?? '',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: selectedNovel != null ? colors.textPrimary : Colors.transparent,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                    child: GestureDetector(
+                      onTap: selectedNovel != null ? onNovelTap : null,
+                      child: Text(
+                        selectedNovel?.name ?? '',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: selectedNovel != null ? colors.textPrimary : Colors.transparent,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   // Back to read list

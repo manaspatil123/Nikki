@@ -6,6 +6,7 @@ class Explanation {
   final String? breakdown;
   final String? formality;
   final List<SimilarWord>? similarWords;
+  final List<ComparisonResult>? comparisons;
 
   Explanation({
     this.meaning,
@@ -15,7 +16,19 @@ class Explanation {
     this.breakdown,
     this.formality,
     this.similarWords,
+    this.comparisons,
   });
+
+  Explanation copyWith({List<ComparisonResult>? comparisons}) => Explanation(
+    meaning: meaning,
+    reading: reading,
+    context: context,
+    examples: examples,
+    breakdown: breakdown,
+    formality: formality,
+    similarWords: similarWords,
+    comparisons: comparisons ?? this.comparisons,
+  );
 
   factory Explanation.fromJson(Map<String, dynamic> json) => Explanation(
     meaning: _asString(json['meaning']),
@@ -27,6 +40,10 @@ class Explanation {
     similarWords: (json['similar_words'] as List<dynamic>?)
         ?.whereType<Map<String, dynamic>>()
         .map((e) => SimilarWord.fromJson(e))
+        .toList(),
+    comparisons: (json['comparisons'] as List<dynamic>?)
+        ?.whereType<Map<String, dynamic>>()
+        .map((e) => ComparisonResult.fromJson(e))
         .toList(),
   );
 
@@ -46,6 +63,8 @@ class Explanation {
     if (breakdown != null) 'breakdown': breakdown,
     if (formality != null) 'formality': formality,
     if (similarWords != null) 'similar_words': similarWords!.map((e) => e.toJson()).toList(),
+    if (comparisons != null && comparisons!.isNotEmpty)
+      'comparisons': comparisons!.map((e) => e.toJson()).toList(),
   };
 }
 
@@ -90,6 +109,15 @@ class ComparisonResult {
     exampleA: json['example_a'] as String? ?? '',
     exampleB: json['example_b'] as String? ?? '',
   );
+
+  Map<String, dynamic> toJson() => {
+    'word_a': wordA.toJson(),
+    'word_b': wordB.toJson(),
+    'difference': difference,
+    'nuance': nuance,
+    'example_a': exampleA,
+    'example_b': exampleB,
+  };
 }
 
 class ComparisonWord {
@@ -104,4 +132,10 @@ class ComparisonWord {
     reading: json['reading'] as String? ?? '',
     meaning: json['meaning'] as String? ?? '',
   );
+
+  Map<String, dynamic> toJson() => {
+    'word': word,
+    'reading': reading,
+    'meaning': meaning,
+  };
 }
